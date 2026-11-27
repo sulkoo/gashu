@@ -2129,11 +2129,9 @@
         <div id="logDetailTitle" style="font-size:20px; font-weight:800; color:var(--c-forest); line-height:1.3;"></div>
       </div>
 
-      <div id="logDetailSlideWrap" style="position:relative; background:var(--surface-2); aspect-ratio: 4 / 3; max-height:360px; width:100%; overflow:hidden; display:flex; align-items:center; justify-content:center;">
-        <img id="logDetailSlideImg" src="" alt="일기 사진" style="width:100%; height:100%; object-fit:cover; display:block;" />
-        <button type="button" id="btnLogSlidePrev" class="btn btn-sm" style="position:absolute; left:10px; top:50%; transform:translateY(-50%); background:rgba(0,0,0,0.55); color:#fff; border-radius:999px; padding:6px 10px;">‹</button>
-        <button type="button" id="btnLogSlideNext" class="btn btn-sm" style="position:absolute; right:10px; top:50%; transform:translateY(-50%); background:rgba(0,0,0,0.55); color:#fff; border-radius:999px; padding:6px 10px;">›</button>
-        <span id="logDetailSlideIndicator" style="position:absolute; bottom:10px; right:12px; background:rgba(0,0,0,0.62); color:#fff; font-size:11px; font-weight:800; padding:3px 9px; border-radius:999px;">1 / 1</span>
+      <div id="logDetailSlideWrap" style="position:relative; background:var(--surface-2); aspect-ratio: 4 / 3; max-height:360px; width:100%; overflow:hidden;">
+        <div id="logDetailSlideTrack" style="display:flex; width:100%; height:100%; overflow-x:auto; scroll-snap-type:x mandatory; -webkit-overflow-scrolling:touch; scrollbar-width:none;"></div>
+        <span id="logDetailSlideIndicator" style="position:absolute; bottom:10px; right:12px; background:rgba(0,0,0,0.62); color:#fff; font-size:11px; font-weight:800; padding:3px 9px; border-radius:999px; pointer-events:none;">1 / 1</span>
       </div>
 
       <div style="padding:18px 16px 20px; background:var(--surface);">
@@ -2144,7 +2142,7 @@
         <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:20px; padding-top:14px; border-top:1px solid var(--border);">
           <button type="button" class="btn btn-outline btn-sm" id="btnEditFromLogDetail"><span>수정</span></button>
           <button type="button" class="btn btn-outline btn-sm" id="btnDeleteFromLogDetail" style="color:var(--c-plum);"><span>삭제</span></button>
-          <button type="button" class="btn btn-primary btn-sm" id="btnCloseLogDetail" aria-label="닫기" title="닫기"><span class="material-symbols-outlined">close</span></button>
+
         </div>
       </div>
     </div>
@@ -2531,9 +2529,23 @@
           const loaded = loadState();
           if (loaded && Array.isArray(loaded.trips)) {
             state = loaded;
-            state.activeTripId = null;
+            let savedTab = "hub";
+            try { savedTab = localStorage.getItem("gashu_last_tab_v98") || loaded.lastTab || "hub"; } catch (_) {}
+            if (savedTab !== "hub" && (state.activeTripId || state.lastVisitedTripId)) {
+              const targetTripId = state.activeTripId || state.lastVisitedTripId;
+              if (state.trips.some(function (x) { return x.id === targetTripId; })) {
+                state.activeTripId = targetTripId;
+                state.lastVisitedTripId = targetTripId;
+              } else {
+                savedTab = "hub";
+                state.activeTripId = null;
+              }
+            } else {
+              state.activeTripId = null;
+              savedTab = "hub";
+            }
             if (typeof switchTab === "function") {
-              switchTab("hub");
+              switchTab(savedTab);
             }
             if (typeof renderAll === "function") renderAll();
             if (typeof renderHub === "function") renderHub();
@@ -3307,9 +3319,15 @@
       }
 
       function switchTab(tab) {
+        try {
+          if (tab) localStorage.setItem('gashu_last_tab_v98', String(tab));
+          if (state && tab) state.lastTab = String(tab);
+        } catch (e) {}
         if (tab === 'hub') {
           state.activeTripId = null;
           try { localStorage.setItem(KEY_STATE, JSON.stringify(state)); } catch (e) {}
+        } else if (!hasActiveTrip() && state && state.lastVisitedTripId && state.trips.some(function (x) { return x.id === state.lastVisitedTripId; })) {
+          state.activeTripId = state.lastVisitedTripId;
         } else if (!hasActiveTrip()) {
           toast('먼저 여행 일정을 선택해 주세요');
           tab = 'hub';
@@ -4281,18 +4299,37 @@
         var detailSlidePhotos = [];
 
         function updateDetailSlideView(trip) {
-          var imgEl = document.getElementById('logDetailSlideImg');
+          var track = document.getElementById('logDetailSlideTrack');
           var indEl = document.getElementById('logDetailSlideIndicator');
-          var prevBtn = document.getElementById('btnLogSlidePrev');
-          var nextBtn = document.getElementById('btnLogSlideNext');
           var slides = detailSlidePhotos.length ? detailSlidePhotos : [getDefaultPlaceThumb(trip)];
-          if (detailSlideIdx < 0) detailSlideIdx = slides.length - 1;
-          if (detailSlideIdx >= slides.length) detailSlideIdx = 0;
-          if (imgEl) imgEl.src = slides[detailSlideIdx];
+          if (detailSlideIdx < 0) detailSlideIdx = 0;
+          if (detailSlideIdx >= slides.length) detailSlideIdx = slides.length - 1;
+          if (track) {
+            track.innerHTML = '';
+            slides.forEach(function (srcUrl) {
+              var slideItem = document.createElement('div');
+              slideItem.style.cssText = 'flex:0 0 100%; width:100%; height:100%; scroll-snap-align:start; display:flex; align-items:center; justify-content:center;';
+              var im = document.createElement('img');
+              im.src = srcUrl;
+              im.alt = '일기 사진';
+              im.style.cssText = 'width:100%; height:100%; object-fit:cover; display:block; user-select:none;';
+              slideItem.appendChild(im);
+              track.appendChild(slideItem);
+            });
+            track.scrollLeft = detailSlideIdx * (track.clientWidth || 1);
+            if (!track.dataset.scrollBound) {
+              track.dataset.scrollBound = '1';
+              track.addEventListener('scroll', function () {
+                var w = track.clientWidth || 1;
+                var curIdx = Math.round(track.scrollLeft / w);
+                var total = track.children.length || 1;
+                curIdx = Math.max(0, Math.min(total - 1, curIdx));
+                detailSlideIdx = curIdx;
+                if (indEl) indEl.textContent = (curIdx + 1) + ' / ' + total;
+              }, { passive: true });
+            }
+          }
           if (indEl) indEl.textContent = (detailSlideIdx + 1) + ' / ' + slides.length;
-          var multi = slides.length > 1;
-          if (prevBtn) prevBtn.classList.toggle('hidden', !multi);
-          if (nextBtn) nextBtn.classList.toggle('hidden', !multi);
         }
 
         function openLogDetailPopup(logItem) {
@@ -5743,9 +5780,12 @@ tickClock();
         });
         document.querySelectorAll('.chip-tab').forEach(function (b) { b.addEventListener('click', function () { switchTab(b.dataset.tab); }); });
         document.querySelectorAll('.fnav-btn').forEach(function (b) {
-          b.addEventListener('click', function () {
+          b.addEventListener('click', function (ev) {
+            if (ev) { ev.preventDefault(); ev.stopPropagation(); }
+            window.__gashuSuppressPopstateToHub = true;
             closeAllBottomSheetsOnFooterNav();
             switchTab(b.dataset.fnav);
+            setTimeout(function () { window.__gashuSuppressPopstateToHub = false; }, 120);
           });
         });
         document.querySelectorAll('[data-goto]').forEach(function (b) { b.addEventListener('click', function () { switchTab(b.dataset.goto); }); });
@@ -6445,23 +6485,12 @@ tickClock();
             btn.addEventListener('click', function (ev) {
               if (ev) { ev.preventDefault(); ev.stopPropagation(); }
               syncTripEditThemePreview(k);
-              var targetTr = (editingTripId && state.trips)
-                ? state.trips.find(function (x) { return x.id === editingTripId; })
-                : activeTrip();
-              if (targetTr) {
-                targetTr.themeKey = k;
-              }
               var pkModal = document.getElementById('tripThemePickerModal');
               if (pkModal) pkModal.classList.add('hidden');
-              if (typeof applyActiveTheme === 'function') {
-                applyActiveTheme();
-              }
-              if (typeof saveState === 'function') {
-                saveState('워크스페이스 컬러: ' + m.label + ' 적용됨');
-              }
               if (typeof updateFloatingAndFooter === 'function') {
                 updateFloatingAndFooter();
               }
+              toast(m.label + ' 선택됨 ([저장]을 눌러 반영하세요)');
             });
             wrap.appendChild(btn);
           });
@@ -8257,17 +8286,7 @@ tickClock();
         });
 
         const settingsInner = document.querySelector("#settingsFullPopup .fx-sheet-card") || document.querySelector("#settingsFullPopup .card");
-        if (settingsInner && !document.getElementById("btnInstallBrowserApp")) {
-          const box = document.createElement("div");
-          box.style.cssText = "background:var(--surface-2); border:1px solid var(--border); border-radius:15px; padding:12px; margin-bottom:12px;";
-          box.innerHTML =
-            '<div style="font-size:13px; font-weight:800; margin-bottom:6px;">브라우저 · 앱 설치 (하이브리드 공용)</div>' +
-            '<div style="font-size:11px; color:var(--text-muted); margin-bottom:8px;">홈 화면 또는 브라우저 앱으로 설치해 웹·모바일·앱에서 같은 계정 세션을 이어서 쓸 수 있습니다.</div>' +
-            '<div style="display:flex; gap:6px; flex-wrap:wrap;">' +
-              '<button type="button" class="btn btn-primary btn-sm" id="btnInstallBrowserApp"><span>브라우저 앱 설치</span></button>' +
-              '<a href="./index.html" class="btn btn-outline btn-sm" style="text-decoration:none;"><span>로그인 화면 열기</span></a>' +
-            '</div>';
-          settingsInner.insertBefore(box, settingsInner.firstChild.nextSibling);
+        if (false && settingsInner && !document.getElementById("btnInstallBrowserApp")) {
 
           const instBtn = document.getElementById("btnInstallBrowserApp");
           if (instBtn) {
