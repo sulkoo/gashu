@@ -1,0 +1,7 @@
+{
+  "name": "가슈 (GASHU) — 여행 허브",
+  "short_name": "GASHU",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone"
+}

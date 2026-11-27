@@ -1,0 +1,879 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>가슈 | 로그인</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCI+CiAgPHJlY3QgeD0iMiIgeT0iMiIgd2lkdGg9IjYwIiBoZWlnaHQ9IjYwIiByeD0iMTYiIGZpbGw9IiNDRUU2QjQiLz4KICA8dGV4dCB4PSIzMiIgeT0iNDAiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZpbGw9IiMxRjQ0MUUiIGZvbnQtZmFtaWx5PSInTmFudW0gU3F1YXJlJywgJ05vdG8gU2FucyBLUicsIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMjQiIGZvbnQtd2VpZ2h0PSI4MDAiPuqwgOyKiDwvdGV4dD4KPC9zdmc+" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #ffffff;
+      --surface: #f4f6f8;
+      --border: #d9dee4;
+      --border-focus: #111111;
+      --text: #111111;
+      --text-sub: #666c75;
+      --badge-bg: #eef7ec;
+      --badge-text: #2e6f29;
+      --btn-bg: #111111;
+      --btn-text: #ffffff;
+      --danger: #d93025;
+      --radius: 15px;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+      font-family: "Noto Sans KR", -apple-system, BlinkMacSystemFont, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 24px 16px;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 380px;
+    }
+
+    .brand-title {
+      text-align: center;
+      font-size: 40px;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      margin: 0 0 32px;
+    }
+
+    .badge {
+      display: inline-block;
+      background: var(--badge-bg);
+      color: var(--badge-text);
+      font-size: 12px;
+      font-weight: 700;
+      padding: 5px 12px;
+      border-radius: 999px;
+      margin-bottom: 12px;
+    }
+
+    .field-group {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .input-box {
+      width: 100%;
+      height: 50px;
+      padding: 0 16px;
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      font-size: 15px;
+      font-family: inherit;
+      color: var(--text);
+      background: #fff;
+      outline: none;
+      transition: border-color 0.15s ease;
+    }
+
+    .input-box:focus {
+      border-color: var(--border-focus);
+    }
+
+    .input-box[readonly] {
+      background: #fafafa;
+      font-weight: 500;
+      padding-right: 64px;
+    }
+
+    .nickname-row {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    .change-nick-btn {
+      position: absolute;
+      right: 12px;
+      background: #eef1f4;
+      border: none;
+      border-radius: 10px;
+      padding: 6px 10px;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-sub);
+      cursor: pointer;
+    }
+
+    .guide-card {
+      margin-top: 12px;
+      background: var(--surface);
+      border: 1px solid #e6eaef;
+      border-radius: var(--radius);
+      padding: 18px 16px;
+      font-size: 13px;
+      line-height: 1.65;
+      color: #333840;
+    }
+
+    .guide-card strong.title {
+      display: block;
+      font-size: 14px;
+      color: var(--text);
+      margin-bottom: 2px;
+    }
+
+    .guide-card .sub {
+      color: var(--text-sub);
+      font-size: 12.5px;
+      margin-bottom: 10px;
+    }
+
+    .guide-card ol {
+      margin: 0;
+      padding-left: 18px;
+    }
+
+    .code-chip {
+      display: inline-block;
+      background: #ffffff;
+      border: 1px solid #dce1e7;
+      border-radius: 6px;
+      padding: 1px 6px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 12px;
+      font-weight: 700;
+      color: #111;
+      word-break: break-all;
+    }
+
+    .scheme-btn {
+      display: inline-block;
+      margin-top: 12px;
+      background: var(--btn-bg);
+      color: var(--btn-text);
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 700;
+      padding: 10px 14px;
+      border-radius: 11px;
+    }
+
+    .guide-note {
+      margin-top: 8px;
+      font-size: 11.5px;
+      color: var(--text-sub);
+    }
+
+    .error-msg {
+      min-height: 20px;
+      margin: 10px 2px 0;
+      font-size: 13px;
+      color: var(--danger);
+    }
+
+    .primary-btn {
+      margin-top: 18px;
+      width: 100%;
+      height: 54px;
+      border: none;
+      border-radius: var(--radius);
+      background: var(--btn-bg);
+      color: var(--btn-text);
+      font-size: 16px;
+      font-weight: 700;
+      font-family: inherit;
+      cursor: pointer;
+    }
+
+    .primary-btn:active {
+      opacity: 0.9;
+    }
+
+    .footer {
+      margin-top: 16px;
+      text-align: center;
+      font-size: 11.5px;
+      color: #8b929c;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    .hub-box {
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px 20px;
+      text-align: center;
+    }
+
+    .hub-box p {
+      color: var(--text-sub);
+      font-size: 14px;
+      margin: 8px 0 20px;
+    }
+
+    .outline-btn {
+      width: 100%;
+      height: 46px;
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      background: #fff;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <main class="container">
+    <h1 class="brand-title">가슈</h1>
+
+    <!-- 인증 화면 -->
+    <section id="authView">
+      <div id="recentBadge" class="badge hidden">최근 로그인한 계정</div>
+
+      <!-- STEP 1: 닉네임 입력 -->
+      <form id="stepNicknameForm" novalidate>
+        <div class="field-group">
+          <input
+            id="nicknameInput"
+            class="input-box"
+            type="text"
+            maxlength="20"
+            placeholder="닉네임 입력 (최대 20자)"
+            autocomplete="username"
+          />
+        </div>
+        <p id="step1Error" class="error-msg"></p>
+        <button type="submit" class="primary-btn">다음</button>
+      </form>
+
+      <!-- STEP 2: 등록 여부에 따라 분기 -->
+      <form id="stepAuthForm" class="hidden" novalidate>
+        <div class="field-group">
+          <div class="nickname-row">
+            <input id="confirmedNickname" class="input-box" type="text" autocomplete="username" readonly />
+            <button type="button" id="changeNicknameBtn" class="change-nick-btn">변경</button>
+          </div>
+
+          <!-- 미등록 계정 전용: 비밀번호 + 힌트 -->
+          <div id="newAccountFields" class="field-group hidden">
+            <input
+              id="passwordInput"
+              class="input-box"
+              type="password"
+              minlength="4"
+              maxlength="12"
+              placeholder="비밀번호 설정 (4~12자)"
+              autocomplete="new-password"
+            />
+            <input
+              id="hintInput"
+              class="input-box"
+              type="text"
+              maxlength="6"
+              placeholder="비밀번호 힌트 (최대 6자)"
+            />
+          </div>
+
+          <!-- 공통: Google OTP 6자리 입력 -->
+          <input
+            id="otpInput"
+            class="input-box"
+            type="text"
+            inputmode="numeric"
+            pattern="[0-9]*"
+            maxlength="6"
+            placeholder="Google OTP 6자리 인증번호 입력"
+            autocomplete="one-time-code"
+          />
+          <div style="display:flex; justify-content:flex-end; margin-top:2px;">
+            <a
+              id="openGoogleOtpTextLink"
+              href="#"
+              role="button"
+              style="font-size:12px; font-weight:600; color:#4f5660; text-decoration:underline; cursor:pointer;"
+            >Google OTP 앱 열기</a>
+          </div>
+        </div>
+
+        <!-- 미등록 계정 전용: OTP 가이드 -->
+        <div id="otpGuideBox" class="guide-card hidden">
+          <strong class="title">로그인 보안 확인</strong>
+          <div class="sub">관리자님의 계정을 보호하기 위해 2단계 인증이 필요합니다.</div>
+          <ol>
+            <li>모바일 기기의 <strong>Google Authenticator 앱</strong> 실행</li>
+            <li>
+              인증 키입력 · 계정: <span class="code-chip" id="otpAccountLabel"></span> / 설정 키(Base32):
+              <span class="code-chip" id="otpSecretLabel"></span>
+            </li>
+            <li>표시된 6자리 코드 입력</li>
+          </ol>
+          <a id="otpSchemeLink" class="scheme-btn" href="#">Google OTP 스킴 링크 열기</a>
+          <div class="guide-note">(미작동 시 앱에서 키 직접 입력)</div>
+        </div>
+
+        <p id="step2Error" class="error-msg"></p>
+        <button type="submit" id="submitAuthBtn" class="primary-btn">바로가기</button>
+      </form>
+    </section>
+
+    <!-- 로그인 성공 후 메인 화면 -->
+    <section id="hubView" class="hub-box hidden">
+      <strong id="welcomeTitle" style="font-size: 18px;"></strong>
+      <p id="sessionInfoText"></p>
+      <button type="button" id="logoutBtn" class="outline-btn">로그아웃</button>
+    </section>
+
+    <footer class="footer">© 2026 sulkoo</footer>
+  </main>
+
+  <script>
+    const STORAGE_KEYS = {
+      USERS: "gashu_registered_users_v1",
+      SESSION: "gashu_auth_session_v1",
+      RECENT_NICK: "gashu_recent_nickname_v1",
+      PENDING_SECRET: "gashu_pending_otp_secrets_v1"
+    };
+    const SESSION_TTL_MS = 24 * 60 * 60 * 1000; // 24시간
+
+    // DOM 요소
+    const authView = document.getElementById("authView");
+    const hubView = document.getElementById("hubView");
+    const recentBadge = document.getElementById("recentBadge");
+
+    const stepNicknameForm = document.getElementById("stepNicknameForm");
+    const nicknameInput = document.getElementById("nicknameInput");
+    const step1Error = document.getElementById("step1Error");
+
+    const stepAuthForm = document.getElementById("stepAuthForm");
+    const confirmedNickname = document.getElementById("confirmedNickname");
+    const changeNicknameBtn = document.getElementById("changeNicknameBtn");
+    const newAccountFields = document.getElementById("newAccountFields");
+    const passwordInput = document.getElementById("passwordInput");
+    const hintInput = document.getElementById("hintInput");
+    const otpInput = document.getElementById("otpInput");
+    const otpGuideBox = document.getElementById("otpGuideBox");
+    const otpAccountLabel = document.getElementById("otpAccountLabel");
+    const otpSecretLabel = document.getElementById("otpSecretLabel");
+    const otpSchemeLink = document.getElementById("otpSchemeLink");
+    const step2Error = document.getElementById("step2Error");
+    const submitAuthBtn = document.getElementById("submitAuthBtn");
+
+    const welcomeTitle = document.getElementById("welcomeTitle");
+    const sessionInfoText = document.getElementById("sessionInfoText");
+    const logoutBtn = document.getElementById("logoutBtn");
+
+    let currentAuthState = {
+      nickname: "",
+      isRegistered: false,
+      secret: ""
+    };
+
+    /**
+     * 1. 랜덤 Base32 시크릿 & otpauth URI 생성
+     */
+    function generateBase32Secret(byteLength = 20) {
+      const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+      const randomBytes = new Uint8Array(byteLength);
+      crypto.getRandomValues(randomBytes);
+
+      let bits = 0;
+      let value = 0;
+      let secret = "";
+
+      for (let i = 0; i < randomBytes.length; i++) {
+        value = (value << 8) | randomBytes[i];
+        bits += 8;
+        while (bits >= 5) {
+          secret += alphabet[(value >>> (bits - 5)) & 0x1f];
+          bits -= 5;
+        }
+      }
+      if (bits > 0) {
+        secret += alphabet[(value << (5 - bits)) & 0x1f];
+      }
+      return secret;
+    }
+
+    function buildOtpauthUri({ nickname, secret, issuer = "GASHU", appLabel = "TravelHub", period = 30, digits = 6 }) {
+      const safeNickname = String(nickname || "").trim();
+      const accountName = appLabel
+        ? `${issuer}:${safeNickname} (${appLabel})`
+        : `${issuer}:${safeNickname}`;
+
+      const query = new URLSearchParams({
+        secret,
+        issuer,
+        algorithm: "SHA1",
+        digits: String(digits),
+        period: String(period)
+      });
+
+      return {
+        accountName,
+        otpauthUrl: `otpauth://totp/${encodeURIComponent(accountName)}?${query.toString()}`
+      };
+    }
+
+    function getOrCreatePendingSecret(nickname) {
+      let drafts = {};
+      try {
+        drafts = JSON.parse(sessionStorage.getItem(STORAGE_KEYS.PENDING_SECRET) || "{}");
+      } catch (_) {
+        drafts = {};
+      }
+      if (!drafts[nickname]) {
+        drafts[nickname] = generateBase32Secret(20);
+        sessionStorage.setItem(STORAGE_KEYS.PENDING_SECRET, JSON.stringify(drafts));
+      }
+      return drafts[nickname];
+    }
+
+    function clearPendingSecret(nickname) {
+      try {
+        const drafts = JSON.parse(sessionStorage.getItem(STORAGE_KEYS.PENDING_SECRET) || "{}");
+        delete drafts[nickname];
+        sessionStorage.setItem(STORAGE_KEYS.PENDING_SECRET, JSON.stringify(drafts));
+      } catch (_) {}
+    }
+
+    /**
+     * 2. 브라우저 내 Base32 TOTP 검증 (RFC 6238, 30초, 6자리)
+     */
+    function base32ToBytes(base32) {
+      const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+      const cleaned = String(base32 || "")
+        .toUpperCase()
+        .replace(/=+$/g, "")
+        .replace(/[^A-Z2-7]/g, "");
+
+      let bits = 0;
+      let value = 0;
+      const output = [];
+
+      for (let i = 0; i < cleaned.length; i++) {
+        const idx = alphabet.indexOf(cleaned[i]);
+        if (idx === -1) continue;
+        value = (value << 5) | idx;
+        bits += 5;
+        if (bits >= 8) {
+          output.push((value >>> (bits - 8)) & 0xff);
+          bits -= 8;
+        }
+      }
+      return new Uint8Array(output);
+    }
+
+    async function generateTotpAtCounter(secretBase32, counter, digits = 6) {
+      const keyBytes = base32ToBytes(secretBase32);
+      if (!keyBytes.length) {
+        throw new Error("유효하지 않은 Base32 시크릿 키입니다.");
+      }
+
+      const counterBuf = new ArrayBuffer(8);
+      const view = new DataView(counterBuf);
+      view.setUint32(0, Math.floor(counter / 0x100000000), false);
+      view.setUint32(4, counter >>> 0, false);
+
+      const cryptoKey = await crypto.subtle.importKey(
+        "raw",
+        keyBytes,
+        { name: "HMAC", hash: { name: "SHA-1" } },
+        false,
+        ["sign"]
+      );
+
+      const signature = new Uint8Array(
+        await crypto.subtle.sign("HMAC", cryptoKey, counterBuf)
+      );
+
+      const offset = signature[signature.length - 1] & 0x0f;
+      const binary =
+        ((signature[offset] & 0x7f) << 24) |
+        ((signature[offset + 1] & 0xff) << 16) |
+        ((signature[offset + 2] & 0xff) << 8) |
+        (signature[offset + 3] & 0xff);
+
+      return String(binary % (10 ** digits)).padStart(digits, "0");
+    }
+
+    async function verifyGoogleOtp(token, secretBase32, window = 1, period = 30) {
+      const normalized = String(token || "").trim();
+      if (!/^\d{6}$/.test(normalized)) return false;
+
+      const currentCounter = Math.floor(Math.floor(Date.now() / 1000) / period);
+      for (let offset = -window; offset <= window; offset++) {
+        const candidate = await generateTotpAtCounter(secretBase32, currentCounter + offset, 6);
+        if (candidate === normalized) return true;
+      }
+      return false;
+    }
+
+    /**
+     * 3. 사용자 저장소 및 24시간 세션 유지
+     */
+    function getRegisteredUsers() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEYS.USERS);
+        if (raw) return JSON.parse(raw);
+      } catch (_) {}
+
+      // 기본 등록 계정 ('슭' + 지정 OTP 시크릿)
+      const seed = {
+        "슭": {
+          nickname: "슭",
+          secret: "ZN34SGWZO7KEZJPYTHOB2EYERKNDDHO5",
+          createdAt: Date.now()
+        }
+      };
+      localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(seed));
+      return seed;
+    }
+
+    function registerUser({ nickname, password, hint, secret }) {
+      const users = getRegisteredUsers();
+      users[nickname] = {
+        nickname,
+        passwordLength: password.length,
+        hint: hint || "",
+        secret,
+        createdAt: Date.now()
+      };
+      localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
+    }
+
+    function saveSession(nickname) {
+      const now = Date.now();
+      const session = {
+        nickname,
+        authenticated: true,
+        issuedAt: now,
+        expiresAt: now + SESSION_TTL_MS
+      };
+      localStorage.setItem(STORAGE_KEYS.SESSION, JSON.stringify(session));
+      localStorage.setItem(STORAGE_KEYS.RECENT_NICK, nickname);
+      return session;
+    }
+
+    function getValidSession() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEYS.SESSION);
+        if (!raw) return null;
+        const session = JSON.parse(raw);
+        if (!session.authenticated || !session.expiresAt || Date.now() >= session.expiresAt) {
+          localStorage.removeItem(STORAGE_KEYS.SESSION);
+          return null;
+        }
+        return session;
+      } catch (_) {
+        localStorage.removeItem(STORAGE_KEYS.SESSION);
+        return null;
+      }
+    }
+
+    function clearSession() {
+      localStorage.removeItem(STORAGE_KEYS.SESSION);
+    }
+
+    /**
+     * 4. 화면 전환 및 이벤트 처리
+     */
+    function showNicknameStep() {
+      step1Error.textContent = "";
+      step2Error.textContent = "";
+      stepAuthForm.classList.add("hidden");
+      stepNicknameForm.classList.remove("hidden");
+
+      const recent = localStorage.getItem(STORAGE_KEYS.RECENT_NICK);
+      if (recent) {
+        nicknameInput.value = recent;
+        recentBadge.classList.remove("hidden");
+      } else {
+        recentBadge.classList.add("hidden");
+      }
+      nicknameInput.focus();
+    }
+
+    function showAuthStep(nickname, userRecord) {
+      const isRegistered = Boolean(userRecord);
+      const secret = isRegistered ? userRecord.secret : getOrCreatePendingSecret(nickname);
+
+      currentAuthState = { nickname, isRegistered, secret };
+      confirmedNickname.value = nickname;
+      passwordInput.value = "";
+      hintInput.value = "";
+      otpInput.value = "";
+      step2Error.textContent = "";
+
+      stepNicknameForm.classList.add("hidden");
+      stepAuthForm.classList.remove("hidden");
+
+      if (isRegistered) {
+        newAccountFields.classList.add("hidden");
+        otpGuideBox.classList.add("hidden");
+        submitAuthBtn.textContent = "바로가기";
+        otpInput.focus();
+      } else {
+        newAccountFields.classList.remove("hidden");
+        otpGuideBox.classList.remove("hidden");
+        submitAuthBtn.textContent = "시작하기";
+
+        const { accountName, otpauthUrl } = buildOtpauthUri({
+          nickname,
+          secret,
+          issuer: "GASHU",
+          appLabel: "TravelHub"
+        });
+        otpAccountLabel.textContent = accountName;
+        otpSecretLabel.textContent = secret;
+        otpSchemeLink.href = otpauthUrl;
+        passwordInput.focus();
+      }
+    }
+
+    function enterHub(session) {
+      if (!session || !session.authenticated) return;
+      try {
+        var nick = String(session.nickname || "").trim();
+        var exp = Number(session.expiresAt || (Date.now() + SESSION_TTL_MS));
+        if (nick) {
+          localStorage.setItem("gashu_device_nickname_v98", nick);
+          localStorage.setItem("gashu_auth_session_v98", JSON.stringify({
+            initialized: true,
+            nickname: nick,
+            loginVerifiedUntil: exp,
+            otpVerifiedUntil: exp
+          }));
+        }
+      } catch (_) {}
+      window.location.replace("./trip.html");
+    }
+
+    nicknameInput.addEventListener("input", () => {
+      if (nicknameInput.value.startsWith(" ")) {
+        nicknameInput.value = nicknameInput.value.replace(/^\s+/, "");
+      }
+    });
+
+    otpInput.addEventListener("input", () => {
+      otpInput.value = otpInput.value.replace(/\D/g, "").slice(0, 6);
+    });
+
+    stepNicknameForm.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const raw = nicknameInput.value;
+      const trimmed = raw.trim();
+
+      if (!trimmed || raw.startsWith(" ") || trimmed.length > 20) {
+        step1Error.textContent = "닉네임은 앞 공백 없이 1~20자로 입력해주세요.";
+        return;
+      }
+
+      const users = getRegisteredUsers();
+      showAuthStep(trimmed, users[trimmed] || null);
+    });
+
+    changeNicknameBtn.addEventListener("click", () => {
+      showNicknameStep();
+    });
+
+    stepAuthForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      step2Error.textContent = "";
+
+      const { nickname, isRegistered, secret } = currentAuthState;
+      const otp = otpInput.value.trim();
+
+      if (!isRegistered) {
+        const password = passwordInput.value;
+        const hint = hintInput.value.trim();
+
+        if (password.length < 4 || password.length > 12) {
+          step2Error.textContent = "비밀번호는 4~12자로 설정해주세요.";
+          passwordInput.focus();
+          return;
+        }
+        if (hint.length > 6) {
+          step2Error.textContent = "비밀번호 힌트는 최대 6자까지 입력할 수 있습니다.";
+          hintInput.focus();
+          return;
+        }
+      }
+
+      if (!/^\d{6}$/.test(otp)) {
+        step2Error.textContent = "Google OTP 6자리 인증번호를 입력해주세요.";
+        otpInput.focus();
+        return;
+      }
+
+      try {
+        const isValid = await verifyGoogleOtp(otp, secret, 1, 30);
+        if (!isValid) {
+          step2Error.textContent = "Google OTP 인증번호가 일치하지 않습니다.";
+          otpInput.focus();
+          return;
+        }
+      } catch (err) {
+        step2Error.textContent = err.message || "OTP 검증 중 오류가 발생했습니다.";
+        return;
+      }
+
+      if (!isRegistered) {
+        registerUser({
+          nickname,
+          password: passwordInput.value,
+          hint: hintInput.value.trim(),
+          secret
+        });
+        clearPendingSecret(nickname);
+      }
+
+      const session = saveSession(nickname);
+      enterHub(session);
+    });
+
+    logoutBtn.addEventListener("click", () => {
+      clearSession();
+      hubView.classList.add("hidden");
+      authView.classList.remove("hidden");
+      showNicknameStep();
+    });
+
+
+    // 1회 계정 초기화 및 슭 계정/OTP 시크릿 고정 + 클릭 복사 지원
+    (function setupAccountResetAndCopyIndex() {
+      const RESET_FLAG = "gashu_reset_done_v2026_11_25";
+      if (!localStorage.getItem(RESET_FLAG)) {
+        try {
+          const keysToRemove = [];
+          for (let i = 0; i < localStorage.length; i++) {
+            const k = localStorage.key(i);
+            if (k && (k.indexOf("gashu_") === 0)) {
+              keysToRemove.push(k);
+            }
+          }
+          keysToRemove.forEach((k) => localStorage.removeItem(k));
+        } catch (_) {}
+        const freshUsers = {
+          "슭": {
+            nickname: "슭",
+            secret: "ZN34SGWZO7KEZJPYTHOB2EYERKNDDHO5",
+            createdAt: Date.now()
+          }
+        };
+        localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(freshUsers));
+        localStorage.setItem(STORAGE_KEYS.RECENT_NICK, "슭");
+        localStorage.setItem(RESET_FLAG, "1");
+      }
+
+      // 닉네임/등록코드/계정명 클릭 시 복사
+      function attachCopy(el, val) {
+        if (!el || !val) return;
+        el.style.cursor = "pointer";
+        el.title = "클릭하여 복사";
+        el.addEventListener("click", function () {
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(val).catch(function () {});
+          }
+          const prev = el.dataset.origText || el.textContent;
+          el.dataset.origText = prev;
+          el.textContent = "복사됨: " + val;
+          setTimeout(function () {
+            el.textContent = prev;
+          }, 1200);
+        });
+      }
+
+      attachCopy(confirmedNickname, confirmedNickname.value || "슭");
+      const origShowAuthStep = showAuthStep;
+      showAuthStep = function (nickname, userRecord) {
+        origShowAuthStep(nickname, userRecord);
+        const curSecret = currentAuthState.secret || "ZN34SGWZO7KEZJPYTHOB2EYERKNDDHO5";
+        const accTxt = `GASHU:${nickname} (TravelHub)`;
+        attachCopy(confirmedNickname, nickname);
+        attachCopy(otpAccountLabel, accTxt);
+        attachCopy(otpSecretLabel, curSecret);
+      };
+    })();
+
+    // OS별 Google Authenticator 앱 스킴 실행 (이미 세팅된 계정에서도 OTP 입력란 아래 링크로 호출)
+    (function setupOsGoogleOtpLink() {
+      const linkEl = document.getElementById("openGoogleOtpTextLink");
+      if (!linkEl) return;
+
+      function launchGoogleOtpByOs(e) {
+        if (e) e.preventDefault();
+        const ua = navigator.userAgent || "";
+        const isIos = /iPad|iPhone|iPod/i.test(ua) ||
+          (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+        const isAndroid = /Android/i.test(ua);
+
+        const nick = (currentAuthState && currentAuthState.nickname)
+          ? currentAuthState.nickname
+          : (localStorage.getItem(STORAGE_KEYS.RECENT_NICK) || "슭");
+        const sec = (currentAuthState && currentAuthState.secret)
+          ? currentAuthState.secret
+          : "ZN34SGWZO7KEZJPYTHOB2EYERKNDDHO5";
+        const accountName = encodeURIComponent(`GASHU:${nick} (TravelHub)`);
+        const otpauthUri = `otpauth://totp/${accountName}?secret=${encodeURIComponent(sec)}&issuer=GASHU&algorithm=SHA1&digits=6&period=30`;
+
+        const iosStoreUrl = "https://apps.apple.com/kr/app/google-authenticator/id388497605";
+        const androidStoreUrl = "https://play.google.com/store/apps/details?id=com.google.android.apps.authenticator2";
+
+        if (isAndroid) {
+          const androidIntent =
+            "intent://totp/" + accountName +
+            "?secret=" + encodeURIComponent(sec) +
+            "&issuer=GASHU#Intent;scheme=otpauth;package=com.google.android.apps.authenticator2;S.browser_fallback_url=" +
+            encodeURIComponent(androidStoreUrl) + ";end";
+          window.location.href = androidIntent;
+          return;
+        }
+
+        if (isIos) {
+          let leftPage = false;
+          const onVis = () => { if (document.hidden) leftPage = true; };
+          document.addEventListener("visibilitychange", onVis);
+          window.addEventListener("pagehide", () => { leftPage = true; }, { once: true });
+          window.location.href = otpauthUri;
+          setTimeout(() => {
+            document.removeEventListener("visibilitychange", onVis);
+            if (!leftPage) {
+              window.location.href = iosStoreUrl;
+            }
+          }, 1400);
+          return;
+        }
+
+        window.location.href = otpauthUri;
+        setTimeout(() => {
+          if (!document.hidden) {
+            window.open(androidStoreUrl, "_blank", "noopener");
+          }
+        }, 1200);
+      }
+
+      linkEl.addEventListener("click", launchGoogleOtpByOs);
+    })();
+
+    // 페이지 로드 / 새로고침 시 유효 세션 우선 복원
+    (function initApp() {
+      const activeSession = getValidSession();
+      if (activeSession) {
+        enterHub(activeSession);
+      } else {
+        showNicknameStep();
+      }
+    })();
+  </script>
+</body>
+</html>
