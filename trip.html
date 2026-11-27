@@ -526,11 +526,10 @@
       display: flex;
       flex-direction: column;
       gap: 0;
-      min-height: calc(100vh - 60px);
+      min-height: 100%;
       padding: 12px 0 0;
       overflow: visible;
       background: var(--c-hero-bg);
-      transition: background 0.2s ease;
     }
     .hub-hero-banner {
       position: relative;
@@ -3380,7 +3379,15 @@
         } catch (e) {}
         if (tab === 'hub') {
           state.activeTripId = null;
-          try { localStorage.setItem(KEY_STATE, JSON.stringify(state)); } catch (e) {}
+          try {
+            var encHub = (typeof window.encryptStatePayload === 'function')
+              ? window.encryptStatePayload(state)
+              : JSON.stringify(state);
+            localStorage.setItem(KEY_STATE, encHub);
+            if (window.__GASHU_CURRENT_ACCOUNT__) {
+              localStorage.setItem(KEY_STATE + '::' + encodeURIComponent(window.__GASHU_CURRENT_ACCOUNT__), encHub);
+            }
+          } catch (e) {}
         } else if (!hasActiveTrip() && state && state.lastVisitedTripId && state.trips.some(function (x) { return x.id === state.lastVisitedTripId; })) {
           state.activeTripId = state.lastVisitedTripId;
         } else if (!hasActiveTrip()) {
@@ -3713,7 +3720,8 @@
         var qEl = document.getElementById('hubSearchInput');
         var q = (qEl && qEl.value ? qEl.value : '').trim().toLowerCase();
 
-        var list = state.trips.filter(function (t) {
+        var allTrips = Array.isArray(state && state.trips) ? state.trips : [];
+        var list = allTrips.filter(function (t) {
           if (hubCategoryFilter === 'archived' || showArc) {
             if (!t.isArchived) return false;
           } else {
@@ -5381,7 +5389,7 @@
                 targetLines.forEach(function (ln) {
                   var cleanedLn = ln.replace(/^\d+[\.\)]\s*/, '').trim();
                   if (/즐길\s*맛집|곳입니다|대비해|드시고|산행하세요|가슈AI|여행\s*플래너/.test(cleanedLn)) return;
-                  var mPair = cleanedLn.match(/^([가-힣A-Za-z0-9·&\s]{2,22}?)(?:\s*[:：\-–—]|\s*\()/);
+                  var mPair = cleanedLn.match(/^([가-힣A-Za-z0-9·&+\s]{2,22}?)(?:\s*[:：\-–—]|\s*\()/);
                   var itemTitle = (mPair && mPair[1]) ? mPair[1].trim() : cleanedLn.split(',')[0].slice(0, 18).trim();
                   if (!itemTitle || itemTitle.length < 2) return;
                   if (extractedItems.indexOf(itemTitle) < 0) extractedItems.push(itemTitle);
@@ -5398,8 +5406,14 @@
                     aBtn.style.cssText = 'text-decoration:none; background:var(--surface); color:var(--c-forest); font-weight:800;';
                     if (isFoodMapSearch) {
                       var mapQuery = destPrefix ? (destPrefix + ' ' + itemName) : itemName;
-                      aBtn.href = 'https://map.naver.com/p/search/' + encodeURIComponent(mapQuery);
-                      aBtn.textContent = mapQuery + ' · 네이버 지도 ↗';
+                      var isOverseasTrip = !!(t && !t.isDomestic);
+                      if (isOverseasTrip) {
+                        aBtn.href = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(mapQuery);
+                        aBtn.textContent = mapQuery + ' · 구글 맵 ↗';
+                      } else {
+                        aBtn.href = 'https://map.naver.com/p/search/' + encodeURIComponent(mapQuery);
+                        aBtn.textContent = mapQuery + ' · 네이버 지도 ↗';
+                      }
                     } else {
                       var detailQuery = itemName;
                       if (destPrefix && itemName.indexOf(destPrefix) < 0) {
@@ -5438,6 +5452,28 @@
             });
         }
         box.scrollTop = box.scrollHeight;
+      }
+
+      
+      if (typeof window.__gashuPullNow !== 'function') {
+        window.__gashuPullNow = function () { return Promise.resolve(false); };
+      }
+      if (typeof window.__gashuScheduleAutoGitSync !== 'function') {
+        window.__gashuScheduleAutoGitSync = function () {};
+      }
+      if (typeof window.switchBotSubTab !== 'function') {
+        window.switchBotSubTab = function (sub) {
+          var target = sub || 'ai';
+          document.querySelectorAll('[data-bottab]').forEach(function (b) {
+            b.classList.toggle('active', b.dataset.bottab === target);
+          });
+          var pAi = document.getElementById('botTabPaneAi');
+          var pSe = document.getElementById('botTabPaneSearch');
+          var pAl = document.getElementById('botTabPaneAlerts');
+          if (pAi) pAi.classList.toggle('hidden', target !== 'ai');
+          if (pSe) pSe.classList.toggle('hidden', target !== 'search');
+          if (pAl) pAl.classList.toggle('hidden', target !== 'alerts');
+        };
       }
 
       function renderAll() {
@@ -7736,6 +7772,7 @@ tickClock();
 
         function applyRemoteStatePayload(remoteObj) {
           if (!remoteObj || typeof remoteObj !== 'object' || !Array.isArray(remoteObj.trips) || !remoteObj.trips.length) return false;
+          if (window.__gashuLocalDirtySince && (Date.now() - window.__gashuLocalDirtySince < 15000)) return false;
           var prevActiveId = state.activeTripId;
           var prevTab = currentTab;
           state = Object.assign({}, state, remoteObj, {
