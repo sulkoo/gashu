@@ -3232,6 +3232,11 @@
 
       function saveState(msg) {
         try {
+          if (state) {
+            if (currentTab) state.lastTab = String(currentTab);
+            if (state.activeTripId) state.lastVisitedTripId = state.activeTripId;
+            try { if (currentTab) localStorage.setItem('gashu_last_tab_v98', String(currentTab)); } catch (_) {}
+          }
           if (state && !state.geminiApiKey) {
             var kNow = (typeof getGeminiKeyVal === 'function') ? getGeminiKeyVal() : (localStorage.getItem(KEY_GEM) || '');
             if (kNow) state.geminiApiKey = kNow.trim();
@@ -4319,6 +4324,7 @@
             track.scrollLeft = detailSlideIdx * (track.clientWidth || 1);
             if (!track.dataset.scrollBound) {
               track.dataset.scrollBound = '1';
+              track.style.cursor = 'grab';
               track.addEventListener('scroll', function () {
                 var w = track.clientWidth || 1;
                 var curIdx = Math.round(track.scrollLeft / w);
@@ -4327,6 +4333,34 @@
                 detailSlideIdx = curIdx;
                 if (indEl) indEl.textContent = (curIdx + 1) + ' / ' + total;
               }, { passive: true });
+              var isDraggingSlide = false;
+              var dragStartX = 0;
+              var dragStartScroll = 0;
+              track.addEventListener('mousedown', function (ev) {
+                if (ev.button !== 0) return;
+                isDraggingSlide = true;
+                dragStartX = ev.pageX;
+                dragStartScroll = track.scrollLeft;
+                track.style.cursor = 'grabbing';
+                track.style.scrollSnapType = 'none';
+              });
+              window.addEventListener('mousemove', function (ev) {
+                if (!isDraggingSlide) return;
+                var dx = ev.pageX - dragStartX;
+                track.scrollLeft = dragStartScroll - dx;
+              });
+              window.addEventListener('mouseup', function () {
+                if (!isDraggingSlide) return;
+                isDraggingSlide = false;
+                track.style.cursor = 'grab';
+                var w = track.clientWidth || 1;
+                var total = track.children.length || 1;
+                var snappedIdx = Math.max(0, Math.min(total - 1, Math.round(track.scrollLeft / w)));
+                detailSlideIdx = snappedIdx;
+                track.style.scrollSnapType = 'x mandatory';
+                track.scrollTo({ left: snappedIdx * w, behavior: 'smooth' });
+                if (indEl) indEl.textContent = (snappedIdx + 1) + ' / ' + total;
+              });
             }
           }
           if (indEl) indEl.textContent = (detailSlideIdx + 1) + ' / ' + slides.length;
@@ -7443,9 +7477,21 @@ tickClock();
       }, 5000);
 
       hydrateProfileFromStorage();
-      state.activeTripId = null;
       if (v98EnforceGate()) {
-        baseSwitchTabV98('hub');
+        var initTab = 'hub';
+        var initTripId = null;
+        try {
+          initTab = localStorage.getItem('gashu_last_tab_v98') || (state && state.lastTab) || 'hub';
+          initTripId = (state && (state.activeTripId || state.lastVisitedTripId)) || null;
+        } catch (e) {}
+        if (initTab !== 'hub' && initTripId && state.trips && state.trips.some(function (x) { return x.id === initTripId; })) {
+          state.activeTripId = initTripId;
+          state.lastVisitedTripId = initTripId;
+          baseSwitchTabV98(initTab);
+        } else {
+          state.activeTripId = null;
+          baseSwitchTabV98('hub');
+        }
         try { if (typeof renderAll === 'function') renderAll(); } catch (e) {}
         try { if (typeof renderHub === 'function') renderHub(); } catch (e) {}
       }
@@ -7569,11 +7615,14 @@ tickClock();
 
         function pullStateFromGitHub(repo, token, silent) {
           if (!repo) return Promise.resolve(false);
+          if (silent && window.__gashuLocalDirtySince && (Date.now() - window.__gashuLocalDirtySince < 15000)) {
+            return Promise.resolve(false);
+          }
           var stEl = document.getElementById('ghPushStatusText');
-          var apiBase = 'https://api.github.com/repos/' + repo + '/contents/data/state.json';
+          var apiBase = 'https://api.github.com/repos/' + repo + '/contents/data/state.json?_t=' + Date.now();
           var headers = { 'Accept': 'application/vnd.github+json' };
           if (token) headers['Authorization'] = 'Bearer ' + token;
-          return fetch(apiBase, { method: 'GET', headers: headers })
+          return fetch(apiBase, { method: 'GET', headers: headers, cache: 'no-store' })
             .then(function (r) {
               if (!r.ok) return null;
               return r.json();
@@ -7701,6 +7750,7 @@ tickClock();
         }
 
         window.__gashuScheduleAutoGitSync = function () {
+          window.__gashuLocalDirtySince = Date.now();
           if (!isAutoSyncEnabled()) return;
           var cfg = readGhConfig();
           if (!cfg.token || !cfg.repo) return;
