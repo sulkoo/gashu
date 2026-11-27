@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <meta name="theme-color" content="#1F441E" />
-  <title>가슈 (GASHU) | 심플 여행 허브</title>
+  <title>가슈 (GASHU) — 심플 여행 허브</title>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCI+CiAgPHJlY3QgeD0iMiIgeT0iMiIgd2lkdGg9IjYwIiBoZWlnaHQ9IjYwIiByeD0iMTYiIGZpbGw9IiNDRUU2QjQiLz4KICA8dGV4dCB4PSIzMiIgeT0iNDAiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZpbGw9IiMxRjQ0MUUiIGZvbnQtZmFtaWx5PSInTmFudW0gU3F1YXJlJywgJ05vdG8gU2FucyBLUicsIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMjQiIGZvbnQtd2VpZ2h0PSI4MDAiPuqwgOyKiDwvdGV4dD4KPC9zdmc+" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -2051,16 +2051,21 @@
         </summary>
         <div style="margin-top:10px; padding-top:8px; border-top:1px dashed color-mix(in srgb, var(--c-forest) 16%, transparent);">
           <p style="font-size:12px; color:var(--text-muted); margin-bottom:8px;">
-            저장소: <code>sulkooworks-commits/gashu</code> · 대시보드: <code>index.html</code> · 상태 파일: <code>data/state.json</code>
+            저장소: <code>sulkoo/gashu</code> · 허브 페이지: <a href="https://sulkoo.github.io/gashu/trip.html" target="_blank" rel="noopener" style="color:var(--c-forest); font-weight:800; text-decoration:underline;">https://sulkoo.github.io/gashu/trip.html</a> · 상태 파일: <code>data/state.json</code>
           </p>
           <div class="form-grid" style="margin-bottom:8px;">
-            <input id="ghRepoFullIn" class="input" placeholder="저장소 (기본: sulkooworks-commits/gashu)" />
-            <input id="ghPatTokenIn" type="password" class="input" placeholder="GitHub Token (필요 시 입력)" />
+            <input id="ghRepoFullIn" class="input" placeholder="저장소 (기본: sulkoo/gashu)" />
+            <input id="ghPatTokenIn" type="password" class="input" placeholder="GitHub Token (Contents 읽기/쓰기 권한 필요)" />
           </div>
-          <div style="display:flex; gap:6px; flex-wrap:wrap; align-items:center;">
+          <div style="display:flex; gap:6px; flex-wrap:wrap; align-items:center; margin-bottom:6px;">
             <button type="button" class="btn btn-primary btn-sm" id="btnSaveGhTokenAndPush"><span>git 저장소 저장하기</span></button>
-            <span id="ghPushStatusText" style="font-size:11px; color:var(--text-muted);">토큰 미입력 시 state.json 다운로드로 저장</span>
+            <button type="button" class="btn btn-outline btn-sm" id="btnPullFromGitHub"><span>GitHub에서 불러오기</span></button>
+            <label style="display:inline-flex; align-items:center; gap:4px; font-size:11px; font-weight:700; color:var(--c-forest); cursor:pointer;">
+              <input type="checkbox" id="ghAutoSyncChk" checked />
+              <span>변경 시 자동 동기화</span>
+            </label>
           </div>
+          <div id="ghPushStatusText" style="font-size:11px; color:var(--text-muted);">토큰 미입력 시 state.json 다운로드로 저장</div>
         </div>
       </details>
 
@@ -3170,10 +3175,20 @@
 
       function saveState(msg) {
         try {
+          if (state && !state.geminiApiKey) {
+            var kNow = (typeof getGeminiKeyVal === 'function') ? getGeminiKeyVal() : (localStorage.getItem(KEY_GEM) || '');
+            if (kNow) state.geminiApiKey = kNow.trim();
+          }
           var toStore = (typeof window.encryptStatePayload === 'function')
             ? window.encryptStatePayload(state)
             : JSON.stringify(state);
           localStorage.setItem(KEY_STATE, toStore);
+          if (window.__GASHU_CURRENT_ACCOUNT__) {
+            localStorage.setItem(KEY_STATE + '::' + encodeURIComponent(window.__GASHU_CURRENT_ACCOUNT__), toStore);
+          }
+          if (typeof window.__gashuScheduleAutoGitSync === 'function') {
+            window.__gashuScheduleAutoGitSync();
+          }
         } catch (e) {}
         toast(msg || '저장되었습니다');
         renderAll();
@@ -4731,6 +4746,9 @@
         try { k = (localStorage.getItem(KEY_GEM) || '').trim(); } catch (e) {}
         if (!k && state && state.geminiApiKey) {
           k = String(state.geminiApiKey).trim();
+          if (k) {
+            try { localStorage.setItem(KEY_GEM, k); } catch (e) {}
+          }
         }
         var inEl = document.getElementById('settingsGemKeyIn');
         if (!k && inEl && inEl.value) k = inEl.value.trim();
@@ -4748,9 +4766,20 @@
         } catch (e) {}
         if (state) {
           state.geminiApiKey = clean;
-          try { localStorage.setItem(KEY_STATE, JSON.stringify(state)); } catch (e) {}
+          try {
+            var enc = (typeof window.encryptStatePayload === 'function')
+              ? window.encryptStatePayload(state)
+              : JSON.stringify(state);
+            localStorage.setItem(KEY_STATE, enc);
+            if (window.__GASHU_CURRENT_ACCOUNT__) {
+              localStorage.setItem(KEY_STATE + '::' + encodeURIComponent(window.__GASHU_CURRENT_ACCOUNT__), enc);
+            }
+          } catch (e) {}
         }
         refreshSettingsGemKeyUi();
+        if (typeof window.__gashuScheduleAutoGitSync === 'function') {
+          window.__gashuScheduleAutoGitSync();
+        }
         return clean;
       }
 
@@ -5042,10 +5071,35 @@
             box.scrollTop = box.scrollHeight;
           }
 
-          var candidateModels = ['gemini-3.8-flash'];
+          var candidateModels = ['gemini-3.8-flash', 'gemini-2.5-flash', 'gemini-2.0-flash'];
 
-          function callModelAt(idx) {
-            var modelName = candidateModels[idx] || 'gemini-3.8-flash';
+          function isTransientDemandError(err) {
+            var msg = String((err && err.message) || '').toLowerCase();
+            var st = Number((err && err.status) || 0);
+            return st === 429 || st === 503 || st === 500 ||
+              msg.indexOf('high demand') >= 0 ||
+              msg.indexOf('overloaded') >= 0 ||
+              msg.indexOf('quota') >= 0 ||
+              msg.indexOf('try again') >= 0 ||
+              msg.indexOf('unavailable') >= 0;
+          }
+
+          function sleepMs(ms) {
+            return new Promise(function (resolve) { setTimeout(resolve, ms); });
+          }
+
+          function callWithRetryAndFallback(modelIdx, attempt) {
+            var idx = modelIdx || 0;
+            var att = attempt || 0;
+            var modelName = candidateModels[idx];
+            if (!modelName) {
+              return Promise.reject(new Error('모든 대체 모델 호출이 실패했습니다. 잠시 후 다시 시도해 주세요.'));
+            }
+            if (pendEl) {
+              pendEl.textContent = (idx === 0 && att === 0)
+                ? 'Gemini 답변 생성 중...'
+                : ('서버 혼잡으로 재시도 중... (' + modelName + ', ' + (att + 1) + '차)');
+            }
             return fetch('https://generativelanguage.googleapis.com/v1beta/models/' + modelName + ':generateContent?key=' + encodeURIComponent(k), {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -5063,11 +5117,26 @@
                 });
               })
               .catch(function (err) {
+                if (!isTransientDemandError(err)) {
+                  throw err;
+                }
+                // Same model retry up to 2 times with backoff (700ms, 1500ms)
+                if (att < 2) {
+                  return sleepMs(700 * (att + 1)).then(function () {
+                    return callWithRetryAndFallback(idx, att + 1);
+                  });
+                }
+                // Move to next fallback model if available
+                if (idx + 1 < candidateModels.length) {
+                  return sleepMs(400).then(function () {
+                    return callWithRetryAndFallback(idx + 1, 0);
+                  });
+                }
                 throw err;
               });
           }
 
-          callModelAt(0)
+          callWithRetryAndFallback(0, 0)
             .then(function (pack) {
               window.__gashuBotInFlight = false;
               clearTimeout(window.__gashuBotSafetyTimer);
@@ -7193,7 +7262,7 @@ tickClock();
       // --- GitHub Repo & Token Storage + state.json Push/Download ---
       (function setupGitHubIntegrationV98() {
         var KEY_GH_CFG = 'gashu_github_sync_v98';
-        var DEFAULT_REPO = 'sulkooworks-commits/gashu';
+        var DEFAULT_REPO = 'sulkoo/gashu';
 
         function readGhConfig() {
           try {
@@ -7220,16 +7289,112 @@ tickClock();
           return { repo: cleanRepo, token: cleanToken };
         }
 
+        var KEY_GH_AUTO = 'gashu_github_autosync_v98';
+        var ghAutoTimer = null;
+
+        function isAutoSyncEnabled() {
+          try {
+            var v = localStorage.getItem(KEY_GH_AUTO);
+            return v === null ? true : (v === '1');
+          } catch (e) { return true; }
+        }
+
+        function setAutoSyncEnabled(en) {
+          try { localStorage.setItem(KEY_GH_AUTO, en ? '1' : '0'); } catch (e) {}
+        }
+
+        function buildSyncableStateSnapshot() {
+          var copy = JSON.parse(JSON.stringify(state || {}));
+          var gemK = (typeof getGeminiKeyVal === 'function') ? getGeminiKeyVal() : (copy.geminiApiKey || '');
+          if (gemK) copy.geminiApiKey = gemK;
+          return copy;
+        }
+
+        function applyRemoteStatePayload(remoteObj) {
+          if (!remoteObj || typeof remoteObj !== 'object' || !Array.isArray(remoteObj.trips)) return false;
+          var prevActiveId = state.activeTripId;
+          var prevTab = currentTab;
+          state = Object.assign({}, state, remoteObj, {
+            trips: remoteObj.trips.map(function (t) {
+              return Object.assign({}, t, {
+                travelLogs: t.travelLogs || [],
+                billing: t.billing || [],
+                itinerary: t.itinerary || [],
+                checklist: (t.checklist || []).map(function (c) {
+                  return Object.assign({ kind: 'task', sourceType: '', tipUrl: '' }, c);
+                })
+              });
+            })
+          });
+          if (state.geminiApiKey) {
+            try { localStorage.setItem(KEY_GEM, String(state.geminiApiKey).trim()); } catch (e) {}
+            if (typeof refreshSettingsGemKeyUi === 'function') refreshSettingsGemKeyUi();
+          }
+          if (prevTab === 'workspace' && prevActiveId && state.trips.some(function (x) { return x.id === prevActiveId; })) {
+            state.activeTripId = prevActiveId;
+          } else {
+            state.activeTripId = null;
+          }
+          try {
+            var enc = (typeof window.encryptStatePayload === 'function')
+              ? window.encryptStatePayload(state)
+              : JSON.stringify(state);
+            localStorage.setItem(KEY_STATE, enc);
+            if (window.__GASHU_CURRENT_ACCOUNT__) {
+              localStorage.setItem(KEY_STATE + '::' + encodeURIComponent(window.__GASHU_CURRENT_ACCOUNT__), enc);
+            }
+          } catch (e) {}
+          if (typeof renderAll === 'function') renderAll();
+          if (typeof renderHub === 'function') renderHub();
+          return true;
+        }
+
+        function pullStateFromGitHub(repo, token, silent) {
+          if (!repo) return Promise.resolve(false);
+          var stEl = document.getElementById('ghPushStatusText');
+          var apiBase = 'https://api.github.com/repos/' + repo + '/contents/data/state.json';
+          var headers = { 'Accept': 'application/vnd.github+json' };
+          if (token) headers['Authorization'] = 'Bearer ' + token;
+          return fetch(apiBase, { method: 'GET', headers: headers })
+            .then(function (r) {
+              if (!r.ok) return null;
+              return r.json();
+            })
+            .then(function (data) {
+              if (!data || !data.content) return false;
+              var b64Clean = String(data.content).replace(/
+/g, '');
+              var rawBin = atob(b64Clean);
+              var u8 = new Uint8Array(rawBin.length);
+              for (var i = 0; i < rawBin.length; i++) u8[i] = rawBin.charCodeAt(i);
+              var decodedText = new TextDecoder().decode(u8);
+              var parsed = (typeof window.decryptStatePayload === 'function')
+                ? window.decryptStatePayload(decodedText)
+                : JSON.parse(decodedText);
+              var ok = applyRemoteStatePayload(parsed);
+              if (ok && stEl && !silent) {
+                stEl.textContent = 'GitHub(' + repo + ')에서 최신 데이터 동기화 완료';
+              }
+              if (ok && !silent && typeof toast === 'function') {
+                toast('GitHub 데이터 동기화 완료');
+              }
+              return ok;
+            })
+            .catch(function () { return false; });
+        }
+
         function syncGhInputsFromStorage() {
           var cfg = readGhConfig();
           var repoIn = document.getElementById('ghRepoFullIn');
           var tokIn = document.getElementById('ghPatTokenIn');
           var stEl = document.getElementById('ghPushStatusText');
+          var autoChk = document.getElementById('ghAutoSyncChk');
           if (repoIn && !repoIn.value) repoIn.value = cfg.repo;
           if (tokIn && cfg.token && !tokIn.value) tokIn.value = cfg.token;
+          if (autoChk) autoChk.checked = isAutoSyncEnabled();
           if (stEl) {
             if (cfg.token) {
-              stEl.textContent = '토큰 저장됨 (' + cfg.repo + ') · 누르면 data/state.json 업로드 시도';
+              stEl.textContent = '토큰 저장됨 (' + cfg.repo + ') · 자동동기화 ' + (isAutoSyncEnabled() ? 'ON' : 'OFF');
             } else {
               stEl.textContent = '토큰 미입력 시 state.json 다운로드로 저장';
             }
@@ -7272,7 +7437,7 @@ tickClock();
             .then(function (existing) {
               var bodyObj = {
                 message: 'chore(state): update data/state.json from GASHU',
-                content: utf8ToBase64((typeof window.encryptStatePayload === 'function') ? window.encryptStatePayload(state) : JSON.stringify(state, null, 2))
+                content: utf8ToBase64((typeof window.encryptStatePayload === 'function') ? window.encryptStatePayload(buildSyncableStateSnapshot()) : JSON.stringify(buildSyncableStateSnapshot(), null, 2))
               };
               if (existing && existing.sha) bodyObj.sha = existing.sha;
               return fetch(apiBase, {
@@ -7301,7 +7466,11 @@ tickClock();
           saveBtn.addEventListener('click', function () {
             var repoIn = document.getElementById('ghRepoFullIn');
             var tokIn = document.getElementById('ghPatTokenIn');
-            var repoVal = (repoIn && repoIn.value ? repoIn.value : DEFAULT_REPO).trim() || DEFAULT_REPO;
+            var rawRepoVal = (repoIn && repoIn.value ? repoIn.value : DEFAULT_REPO).trim() || DEFAULT_REPO;
+            var repoVal = rawRepoVal
+              .replace(/^https?:\/\/[^/]+\.github\.io\/([^/?#]+).*$/i, function (_, r) { return 'sulkoo/' + r; })
+              .replace(/^https?:\/\/github\.com\/([^/?#]+\/[^/?#]+?)(?:\.git)?(?:\/.*)?$/i, '$1')
+              .replace(/^\/+|\/+$/g, '') || DEFAULT_REPO;
             var tokVal = (tokIn && tokIn.value ? tokIn.value : '').trim();
             var saved = writeGhConfig(repoVal, tokVal);
             syncGhInputsFromStorage();
@@ -7314,14 +7483,52 @@ tickClock();
           });
         }
 
+        window.__gashuScheduleAutoGitSync = function () {
+          if (!isAutoSyncEnabled()) return;
+          var cfg = readGhConfig();
+          if (!cfg.token || !cfg.repo) return;
+          clearTimeout(ghAutoTimer);
+          ghAutoTimer = setTimeout(function () {
+            pushStateJsonToGitHub(cfg.repo, cfg.token);
+          }, 900);
+        };
+
+        var autoChkEl = document.getElementById('ghAutoSyncChk');
+        if (autoChkEl) {
+          autoChkEl.addEventListener('change', function () {
+            setAutoSyncEnabled(!!autoChkEl.checked);
+            syncGhInputsFromStorage();
+            toast(autoChkEl.checked ? '변경 시 GitHub 자동 동기화 켜짐' : '변경 시 GitHub 자동 동기화 꺼짐');
+          });
+        }
+
+        var pullBtnEl = document.getElementById('btnPullFromGitHub');
+        if (pullBtnEl) {
+          pullBtnEl.addEventListener('click', function () {
+            var cfg = readGhConfig();
+            pullStateFromGitHub(cfg.repo, cfg.token, false);
+          });
+        }
+
         var settingsBtn = document.getElementById('btnOpenSettingsPopup');
         if (settingsBtn) {
           settingsBtn.addEventListener('click', function () {
-            setTimeout(syncGhInputsFromStorage, 0);
+            setTimeout(function () {
+              syncGhInputsFromStorage();
+              var cfg = readGhConfig();
+              if (cfg.token && cfg.repo) pullStateFromGitHub(cfg.repo, cfg.token, true);
+            }, 0);
           });
         }
 
         syncGhInputsFromStorage();
+        // Initial silent pull from GitHub if token is configured so cross-browser/mobile changes appear automatically
+        setTimeout(function () {
+          var cfg = readGhConfig();
+          if (cfg.token && cfg.repo) {
+            pullStateFromGitHub(cfg.repo, cfg.token, true);
+          }
+        }, 400);
       })();
 
       // --- Complete wiring for Settings Security/Profile, Bot 3-Tabs, Bookings, and Auth Helpers ---
@@ -8046,8 +8253,10 @@ tickClock();
         });
       })();
 
-      // 하이브리드 앱(WebView/Capacitor/Standalone) 허브 화면에서 뒤로가기 시 앱 종료 방지
-      (function setupHybridHubBackGuard() {
+      // 워크스페이스에서 뒤로가기 시 앱 종료 대신 허브(#sec-hub)로 이동 + 설치 지원
+      (function setupWorkspaceToHubBackAndInstall() {
+        var deferredInstallPrompt = null;
+
         function isStandaloneOrHybrid() {
           var isCap = !!(window.Capacitor && (window.Capacitor.isNativePlatform || window.Capacitor.platform));
           var isCordova = !!window.cordova;
@@ -8056,31 +8265,85 @@ tickClock();
           return isCap || isCordova || isStandalone;
         }
 
-        function ensureHubHistoryTrap() {
+        function ensureHistoryTrap() {
           try {
-            if (!window.history || !window.history.state || !window.history.state.__gashuHubTrap) {
-              window.history.pushState({ __gashuHubTrap: true, tab: 'hub' }, '', window.location.href);
+            if (!window.history || !window.history.state || !window.history.state.__gashuNavTrap) {
+              window.history.pushState({ __gashuNavTrap: true }, '', window.location.href);
             }
           } catch (e) {}
         }
 
-        if (isStandaloneOrHybrid()) {
-          ensureHubHistoryTrap();
-        }
+        ensureHistoryTrap();
 
         window.addEventListener('popstate', function () {
-          if (!isStandaloneOrHybrid()) return;
+          ensureHistoryTrap();
           var onHub = (currentTab === 'hub') || !hasActiveTrip();
-          if (onHub) {
-            ensureHubHistoryTrap();
+          if (!onHub) {
+            if (typeof closeAllBottomSheetsOnFooterNav === 'function') {
+              closeAllBottomSheetsOnFooterNav();
+            }
             if (typeof switchTab === 'function') {
               switchTab('hub');
             }
             if (typeof toast === 'function') {
-              toast('허브 화면에서는 뒤로가기로 앱이 종료되지 않습니다');
+              toast('허브 화면으로 이동했습니다');
             }
+          } else if (isStandaloneOrHybrid() && typeof toast === 'function') {
+            toast('허브 화면에서는 뒤로가기로 앱이 종료되지 않습니다');
           }
         });
+
+        window.addEventListener('beforeinstallprompt', function (e) {
+          e.preventDefault();
+          deferredInstallPrompt = e;
+          var instBtn = document.getElementById('btnInstallHybridApp');
+          if (instBtn) instBtn.classList.remove('hidden');
+        });
+
+        function injectInstallButtonIntoSettings() {
+          var setPopup = document.getElementById('settingsFullPopup');
+          if (!setPopup || document.getElementById('btnInstallHybridApp')) return;
+          var card = setPopup.querySelector('.fx-sheet-card');
+          if (!card) return;
+          var box = document.createElement('div');
+          box.style.cssText = 'background:var(--surface-2); border:1px solid var(--border); border-radius:15px; padding:12px; margin-bottom:10px;';
+          box.innerHTML =
+            '<div style="display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap;">' +
+              '<div>' +
+                '<div style="font-size:13px; font-weight:800; color:var(--c-forest);">하이브리드 앱 설치</div>' +
+                '<div style="font-size:11px; color:var(--text-muted);">홈 화면에 앱처럼 설치하여 빠르게 실행합니다.</div>' +
+              '</div>' +
+              '<button type="button" class="btn btn-primary btn-sm" id="btnInstallHybridApp"><span>앱 설치하기</span></button>' +
+            '</div>';
+          var swBox = card.querySelector('#hubThemeSwatches');
+          if (swBox && swBox.parentElement) {
+            swBox.parentElement.insertAdjacentElement('afterend', box);
+          } else {
+            card.prepend(box);
+          }
+          var b = document.getElementById('btnInstallHybridApp');
+          if (b) {
+            b.addEventListener('click', function () {
+              if (deferredInstallPrompt && typeof deferredInstallPrompt.prompt === 'function') {
+                deferredInstallPrompt.prompt();
+                deferredInstallPrompt.userChoice.then(function () {
+                  deferredInstallPrompt = null;
+                });
+              } else {
+                var isIos = /iPad|iPhone|iPod/i.test(navigator.userAgent || '');
+                if (typeof toast === 'function') {
+                  toast(isIos ? 'Safari 공유(□↑) → 홈 화면에 추가를 눌러 설치하세요' : '브라우저 메뉴(⋮) → 앱 설치 또는 홈 화면에 추가를 선택하세요');
+                }
+              }
+            });
+          }
+        }
+
+        if (document.readyState === 'loading') {
+          document.addEventListener('DOMContentLoaded', injectInstallButtonIntoSettings);
+        } else {
+          injectInstallButtonIntoSettings();
+        }
       })();
 
       (function ensureInitialHubOrSectionVisible() {
@@ -8102,6 +8365,5 @@ tickClock();
       setInterval(tickClock, 1000);
     })();
   </script>
-
-  
-  
+</body>
+</html>
