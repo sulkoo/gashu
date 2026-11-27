@@ -3610,10 +3610,10 @@
         var q = (qEl && qEl.value ? qEl.value : '').trim().toLowerCase();
 
         var list = state.trips.filter(function (t) {
-          if (hubCategoryFilter === 'archived') {
+          if (hubCategoryFilter === 'archived' || showArc) {
             if (!t.isArchived) return false;
-          } else if (!showArc && t.isArchived) {
-            return false;
+          } else {
+            if (t.isArchived) return false;
           }
           if (hubCategoryFilter === 'domestic' && !t.isDomestic) return false;
           if (hubCategoryFilter === 'overseas' && !!t.isDomestic) return false;
@@ -5107,7 +5107,7 @@
             box.scrollTop = box.scrollHeight;
           }
 
-          var candidateModels = ['gemini-3.8-flash', 'gemini-2.0-flash'];
+          var candidateModels = ['gemini-3.8-flash'];
 
           function isTransientDemandError(err) {
             var msg = String((err && err.message) || '').toLowerCase();
@@ -5156,16 +5156,11 @@
                 if (!isTransientDemandError(err)) {
                   throw err;
                 }
-                // Same model retry up to 2 times with backoff (700ms, 1500ms)
-                if (att < 2) {
-                  return sleepMs(700 * (att + 1)).then(function () {
+                // Retry same model up to 4 times with progressive backoff when 503/429/high demand occurs
+                if (att < 4) {
+                  var waitMs = 800 + att * 900;
+                  return sleepMs(waitMs).then(function () {
                     return callWithRetryAndFallback(idx, att + 1);
-                  });
-                }
-                // Move to next fallback model if available
-                if (idx + 1 < candidateModels.length) {
-                  return sleepMs(400).then(function () {
-                    return callWithRetryAndFallback(idx + 1, 0);
                   });
                 }
                 throw err;
@@ -5675,7 +5670,12 @@ tickClock();
         });
         document.querySelectorAll('[data-goto]').forEach(function (b) { b.addEventListener('click', function () { switchTab(b.dataset.goto); }); });
         document.getElementById('chkShowArchived').addEventListener('change', function (e) {
-          if (!e.target.checked && hubCategoryFilter === 'archived') {
+          if (e.target.checked) {
+            hubCategoryFilter = 'archived';
+            document.querySelectorAll('[data-hubfilter]').forEach(function (x) {
+              x.classList.toggle('active', x.dataset.hubfilter === 'archived');
+            });
+          } else if (hubCategoryFilter === 'archived') {
             hubCategoryFilter = 'all';
             document.querySelectorAll('[data-hubfilter]').forEach(function (x) {
               x.classList.toggle('active', x.dataset.hubfilter === 'all');
