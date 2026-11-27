@@ -548,14 +548,13 @@
       position: relative;
       flex: 1;
       width: 100%;
-      min-height: calc(100vh - 230px);
+      min-height: 100%;
       margin-top: 0;
       background: var(--surface);
       border-radius: 26px 26px 0 0;
       padding: 18px 16px 80px;
       box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.08);
       z-index: 2;
-      transition: border-radius 0.18s ease;
     }
     .hub-hero-curve.is-scrolled {
       border-top-left-radius: 0;
@@ -2577,9 +2576,9 @@
             }
             if (typeof switchTab === "function") {
               switchTab(savedTab);
+            } else if (typeof renderAll === "function") {
+              renderAll();
             }
-            if (typeof renderAll === "function") renderAll();
-            if (typeof renderHub === "function") renderHub();
           }
         }
       }
@@ -3441,7 +3440,7 @@
         if (typeof window.syncStickyHeaderByScroll === 'function') window.syncStickyHeaderByScroll();
         if (typeof updateFloatingAndFooter === 'function') updateFloatingAndFooter();
         updateFloatingAndFooter();
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+        window.scrollTo(0, 0);
       }
 
       function tickClock() {
@@ -6618,7 +6617,7 @@ tickClock();
         })();
 
         document.getElementById('btnScrollTop').addEventListener('click', function () {
-          window.scrollTo({ top: 0, behavior: 'smooth' });
+          window.scrollTo(0, 0);
         });
         function syncBotGlassBackdrop() {
           var p = document.getElementById('botPanel');
@@ -6910,7 +6909,6 @@ tickClock();
           });
         }
       })();
-      tickClock();
           document.body.style.setProperty('--c-tile-1-text', isDarkHex(t1Bg) ? '#ffffff' : '#111315');
           document.body.style.setProperty('--c-tile-2-text', isDarkHex(t2Bg) ? '#ffffff' : '#111315');
           document.body.style.setProperty('--c-sage-text', isDarkHex(sageBg) ? '#ffffff' : '#111315');
