@@ -479,9 +479,13 @@
     }
     @media (min-width: 769px) {
       .chip-tabs.is-pc-sticky {
-        position: sticky;
+        position: fixed;
         top: 0;
-        z-index: 38;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 100%;
+        max-width: 960px;
+        z-index: 42;
         box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
       }
     }
@@ -5307,10 +5311,44 @@
               var rawAns = (j.candidates && j.candidates[0] && j.candidates[0].content &&
                 j.candidates[0].content.parts && j.candidates[0].content.parts[0] &&
                 j.candidates[0].content.parts[0].text) || '응답 내용이 비어 있습니다.';
-              var ans = stripMarkdownSymbols(rawAns);
+              var ans = stripMarkdownSymbols(rawAns)
+                .replace(/\s*\(\s*\d+\s*자\s*\)\s*/g, '')
+                .replace(/
+?\s*\d+\s*자\s*$/g, '')
+                .trim();
               pendEl.style.whiteSpace = 'pre-line';
               pendEl.textContent = ans;
               saveBotMessageToHistory(ctxKey, 'bot', ans, false);
+
+              var placeLines = ans.split(/
+?
+/).map(function (ln) { return ln.trim(); }).filter(Boolean);
+              var naverTargets = [];
+              placeLines.forEach(function (ln) {
+                var mNum = ln.match(/^(?:\d+[\.\)]\s*)?([가-힣A-Za-z0-9·&\s]{2,22}?)(?:\s*[:：\-–—]|\s*\()/);
+                if (mNum && mNum[1]) {
+                  var cand = mNum[1].trim();
+                  if (cand && cand.indexOf('가슈AI') < 0 && cand.indexOf('코스') < 0 && cand.indexOf('추천') < 0 && cand.indexOf('팁') < 0) {
+                    if (naverTargets.indexOf(cand) < 0) naverTargets.push(cand);
+                  }
+                }
+              });
+              if (naverTargets.length && (cleanQ.indexOf('맛집') >= 0 || cleanQ.indexOf('동선') >= 0 || cleanQ.indexOf('여행지') >= 0 || cleanQ.indexOf('추천') >= 0 || cleanQ.indexOf('코스') >= 0 || cleanQ.indexOf('가볼') >= 0)) {
+                var linkRow = document.createElement('div');
+                linkRow.style.cssText = 'display:flex; flex-wrap:wrap; gap:6px; margin-top:4px; margin-bottom:4px; align-self:flex-start;';
+                naverTargets.slice(0, 4).forEach(function (plName) {
+                  var aBtn = document.createElement('a');
+                  aBtn.href = 'https://search.naver.com/search.naver?query=' + encodeURIComponent(plName);
+                  aBtn.target = '_blank';
+                  aBtn.rel = 'noopener';
+                  aBtn.className = 'btn btn-outline btn-sm';
+                  aBtn.style.cssText = 'text-decoration:none; background:var(--surface); color:var(--c-forest); font-weight:800;';
+                  aBtn.textContent = plName + ' · 네이버 검색 ↗';
+                  linkRow.appendChild(aBtn);
+                });
+                box.appendChild(linkRow);
+              }
+
               appendFollowupChips(buildFollowupQuestions(cleanQ, isHubMode));
               box.scrollTop = box.scrollHeight;
             })
@@ -5585,14 +5623,65 @@ tickClock();
         }
 
         var detSheetEl = document.getElementById('logDetailBottomSheet');
+        var detDragBar = document.getElementById('logDetailDragBar');
         if (detSheetEl) {
           detSheetEl.addEventListener('scroll', function () {
             if (detSheetEl.scrollTop > 18) {
-              detSheetEl.style.height = '100vh';
-              detSheetEl.style.minHeight = '100vh';
-              detSheetEl.style.borderRadius = '0';
+              detSheetEl.style.height = '96vh';
+              detSheetEl.style.minHeight = '96vh';
+              detSheetEl.style.borderRadius = '24px 24px 0 0';
             }
           }, { passive: true });
+        }
+        if (detSheetEl && detDragBar) {
+          var detDragging = false;
+          var detStartY = 0;
+          var detStartH = 0;
+          function beginSheetDrag(cy) {
+            detDragging = true;
+            detStartY = cy;
+            detStartH = detSheetEl.getBoundingClientRect().height;
+            detSheetEl.style.transition = 'none';
+          }
+          function moveSheetDrag(cy) {
+            if (!detDragging) return;
+            var dy = detStartY - cy;
+            var vhPx = window.innerHeight || 800;
+            var nextH = Math.max(Math.round(vhPx * 0.35), Math.min(Math.round(vhPx * 0.96), detStartH + dy));
+            detSheetEl.style.height = nextH + 'px';
+            detSheetEl.style.minHeight = nextH + 'px';
+          }
+          function endSheetDrag() {
+            if (!detDragging) return;
+            detDragging = false;
+            detSheetEl.style.transition = 'height 0.22s ease, border-radius 0.22s ease';
+            var vhPx = window.innerHeight || 800;
+            var curH = detSheetEl.getBoundingClientRect().height;
+            if (curH < vhPx * 0.42) {
+              closeLogDetailPopup();
+            } else if (curH > vhPx * 0.84) {
+              detSheetEl.style.height = '96vh';
+              detSheetEl.style.minHeight = '96vh';
+            } else {
+              detSheetEl.style.height = '74vh';
+              detSheetEl.style.minHeight = '74vh';
+            }
+          }
+          detDragBar.addEventListener('mousedown', function (ev) {
+            ev.preventDefault();
+            beginSheetDrag(ev.clientY);
+          });
+          window.addEventListener('mousemove', function (ev) {
+            moveSheetDrag(ev.clientY);
+          });
+          window.addEventListener('mouseup', endSheetDrag);
+          detDragBar.addEventListener('touchstart', function (ev) {
+            if (ev.touches && ev.touches[0]) beginSheetDrag(ev.touches[0].clientY);
+          }, { passive: true });
+          window.addEventListener('touchmove', function (ev) {
+            if (detDragging && ev.touches && ev.touches[0]) moveSheetDrag(ev.touches[0].clientY);
+          }, { passive: true });
+          window.addEventListener('touchend', endSheetDrag);
         }
 
         var btnCloseDet = document.getElementById('btnCloseLogDetail');
