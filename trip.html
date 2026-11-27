@@ -1500,6 +1500,13 @@
             <button type="button" class="hub-fpill" data-hubfilter="domestic">국내 여행</button>
             <button type="button" class="hub-fpill" data-hubfilter="overseas">해외 여행</button>
             <button type="button" class="hub-fpill" data-hubfilter="completed">다녀온 기록</button>
+            <button type="button" class="hub-fpill" data-hubfilter="archived">보관함</button>
+            <select id="hubSortSelect" class="input" aria-label="일정 정렬" style="width:auto; min-width:110px; padding:5px 9px; font-size:11px; font-weight:800;">
+              <option value="default">정렬: 기본순</option>
+              <option value="start_asc">시작일 빠른순</option>
+              <option value="start_desc">시작일 늦은순</option>
+              <option value="title_asc">이름순(가나다)</option>
+            </select>
           </div>
 
           <div id="hubCards" class="grid-2"></div>
@@ -3593,12 +3600,21 @@
       }
 
       function renderHub() {
-        var showArc = document.getElementById('chkShowArchived').checked;
+        var chkArcEl = document.getElementById('chkShowArchived');
+        var showArc = !!(chkArcEl && chkArcEl.checked);
+        if (hubCategoryFilter === 'archived') {
+          showArc = true;
+          if (chkArcEl) chkArcEl.checked = true;
+        }
         var qEl = document.getElementById('hubSearchInput');
         var q = (qEl && qEl.value ? qEl.value : '').trim().toLowerCase();
 
         var list = state.trips.filter(function (t) {
-          if (!showArc && t.isArchived) return false;
+          if (hubCategoryFilter === 'archived') {
+            if (!t.isArchived) return false;
+          } else if (!showArc && t.isArchived) {
+            return false;
+          }
           if (hubCategoryFilter === 'domestic' && !t.isDomestic) return false;
           if (hubCategoryFilter === 'overseas' && !!t.isDomestic) return false;
           if (hubCategoryFilter === 'completed' && t.status !== 'completed' && ddayLabel(t) !== '종료') return false;
@@ -3608,6 +3624,16 @@
           }
           return true;
         });
+
+        var sortSel = document.getElementById('hubSortSelect');
+        var sortMode = (sortSel && sortSel.value) || 'default';
+        if (sortMode === 'start_asc') {
+          list = list.slice().sort(function (a, b) { return String(a.startDate || '').localeCompare(String(b.startDate || '')); });
+        } else if (sortMode === 'start_desc') {
+          list = list.slice().sort(function (a, b) { return String(b.startDate || '').localeCompare(String(a.startDate || '')); });
+        } else if (sortMode === 'title_asc') {
+          list = list.slice().sort(function (a, b) { return String(a.title || '').localeCompare(String(b.title || ''), 'ko'); });
+        }
 
         document.getElementById('hubCountPill').textContent = list.length + '개';
         var wrap = document.getElementById('hubCards');
@@ -5081,7 +5107,7 @@
             box.scrollTop = box.scrollHeight;
           }
 
-          var candidateModels = ['gemini-3.8-flash', 'gemini-2.5-flash', 'gemini-2.0-flash'];
+          var candidateModels = ['gemini-3.8-flash', 'gemini-2.0-flash'];
 
           function isTransientDemandError(err) {
             var msg = String((err && err.message) || '').toLowerCase();
@@ -5648,7 +5674,17 @@ tickClock();
           });
         });
         document.querySelectorAll('[data-goto]').forEach(function (b) { b.addEventListener('click', function () { switchTab(b.dataset.goto); }); });
-        document.getElementById('chkShowArchived').addEventListener('change', renderHub);
+        document.getElementById('chkShowArchived').addEventListener('change', function (e) {
+          if (!e.target.checked && hubCategoryFilter === 'archived') {
+            hubCategoryFilter = 'all';
+            document.querySelectorAll('[data-hubfilter]').forEach(function (x) {
+              x.classList.toggle('active', x.dataset.hubfilter === 'all');
+            });
+          }
+          renderHub();
+        });
+        var sortSelBind = document.getElementById('hubSortSelect');
+        if (sortSelBind) sortSelBind.addEventListener('change', renderHub);
         var hubInEl = document.getElementById('hubSearchInput');
         if (hubInEl) hubInEl.addEventListener('input', renderHub);
         document.querySelectorAll('[data-hubfilter]').forEach(function (b) {
@@ -6307,18 +6343,22 @@ tickClock();
             btn.addEventListener('click', function (ev) {
               if (ev) { ev.preventDefault(); ev.stopPropagation(); }
               syncTripEditThemePreview(k);
-              state.hubTheme = k;
               var targetTr = (editingTripId && state.trips)
                 ? state.trips.find(function (x) { return x.id === editingTripId; })
                 : activeTrip();
               if (targetTr) {
                 targetTr.themeKey = k;
               }
+              var pkModal = document.getElementById('tripThemePickerModal');
+              if (pkModal) pkModal.classList.add('hidden');
               if (typeof applyActiveTheme === 'function') {
                 applyActiveTheme();
               }
               if (typeof saveState === 'function') {
-                saveState(m.label + ' 컬러시스템 적용됨');
+                saveState('워크스페이스 컬러: ' + m.label + ' 적용됨');
+              }
+              if (typeof updateFloatingAndFooter === 'function') {
+                updateFloatingAndFooter();
               }
             });
             wrap.appendChild(btn);
@@ -7409,7 +7449,7 @@ tickClock();
             })
             .then(function (data) {
               if (!data || !data.content) return false;
-              var b64Clean = String(data.content).replace(/ /g, '');
+              var b64Clean = String(data.content).replace(/\s+/g, '');
               var rawBin = atob(b64Clean);
               var u8 = new Uint8Array(rawBin.length);
               for (var i = 0; i < rawBin.length; i++) u8[i] = rawBin.charCodeAt(i);
