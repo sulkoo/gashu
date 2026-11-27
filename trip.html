@@ -7362,8 +7362,7 @@ tickClock();
             })
             .then(function (data) {
               if (!data || !data.content) return false;
-              var b64Clean = String(data.content).replace(/
-/g, '');
+              var b64Clean = String(data.content).replace(/ /g, '');
               var rawBin = atob(b64Clean);
               var u8 = new Uint8Array(rawBin.length);
               for (var i = 0; i < rawBin.length; i++) u8[i] = rawBin.charCodeAt(i);
