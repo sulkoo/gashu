@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <meta name="theme-color" content="#1F441E" />
-  <title>가슈 (GASHU) — 심플 여행 허브</title>
+  <title>가슈 (GASHU) ｜ 나혼자 간편 여행</title>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCI+CiAgPHJlY3QgeD0iMiIgeT0iMiIgd2lkdGg9IjYwIiBoZWlnaHQ9IjYwIiByeD0iMTYiIGZpbGw9IiNDRUU2QjQiLz4KICA8dGV4dCB4PSIzMiIgeT0iNDAiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZpbGw9IiMxRjQ0MUUiIGZvbnQtZmFtaWx5PSInTmFudW0gU3F1YXJlJywgJ05vdG8gU2FucyBLUicsIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMjQiIGZvbnQtd2VpZ2h0PSI4MDAiPuqwgOyKiDwvdGV4dD4KPC9zdmc+" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -1332,7 +1332,7 @@
       <button type="button" class="chip-tab active" data-tab="workspace"><span>대시보드</span></button>
       <button type="button" class="chip-tab" data-tab="checkboard"><span>체크 보드</span></button>
       <button type="button" class="chip-tab" data-tab="itinerary"><span>일정·날씨·지도</span></button>
-      <button type="button" class="chip-tab" data-tab="ledger"><span>가계부·환율</span></button>
+      <button type="button" class="chip-tab" data-tab="ledger"><span>가계부</span></button>
       <button type="button" class="chip-tab" data-tab="travelog"><span>기록로그</span></button>
     </nav>
 
@@ -1873,7 +1873,7 @@
     <section id="sec-ledger" class="tab-section hidden">
       <div class="subpage-top-banner">
         <div style="font-size:11px; font-weight:700; color:var(--c-hero-sub);">지출 · 환율 · 정산</div>
-        <div style="font-size:21px; font-weight:800; line-height:1.25; margin-top:2px;">가계부 · 환율</div>
+        <div style="font-size:21px; font-weight:800; line-height:1.25; margin-top:2px;">가계부</div>
         <div style="font-size:11px; opacity:0.9; margin-top:3px;">청구 확정 지출과 가승인 홀드, 세금·팁 환율을 계산하세요.</div>
       </div>
       <div class="subpage-top-curve">
@@ -2138,11 +2138,6 @@
             <input id="logSns" class="input" placeholder="SNS 링크 (URL)" />
           </div>
 
-          <div style="background:var(--surface); border:1px solid var(--border); border-radius:15px; padding:9px; margin-bottom:8px;">
-            <div style="font-size:11px; font-weight:800; color:var(--c-plum); margin-bottom:3px; display:inline-flex; align-items:center; gap:4px;"><span>해당일 연동 일정·할 일</span></div>
-            <div id="logLinkedItems" style="font-size:12px; color:var(--text-muted);"></div>
-          </div>
-
           <div class="editor-bar">
             <button type="button" class="btn btn-outline btn-sm" data-fmt="bold"><strong>B</strong></button>
             <button type="button" class="btn btn-outline btn-sm" data-fmt="italic"><em>I</em></button>
@@ -2172,7 +2167,7 @@
     <button type="button" class="fnav-btn" data-fnav="workspace"><span>대시보드</span></button>
     <button type="button" class="fnav-btn" data-fnav="checkboard"><span>체크보드</span></button>
     <button type="button" class="fnav-btn" data-fnav="itinerary"><span>일정·지도</span></button>
-    <button type="button" class="fnav-btn" data-fnav="ledger"><span>가계부·환율</span></button>
+    <button type="button" class="fnav-btn" data-fnav="ledger"><span>가계부</span></button>
     <button type="button" class="fnav-btn" data-fnav="travelog"><span>기록로그</span></button>
   </nav>
 
@@ -3963,13 +3958,14 @@
         sorted.forEach(function (i) {
           var row = document.createElement('div');
           row.className = 'simple-row';
+          row.style.cssText = 'flex-direction:column; align-items:stretch; gap:8px;';
           row.innerHTML =
-            '<div style="display:flex; align-items:center; gap:10px; flex:1; min-width:0;">' +
+            '<div style="display:flex; align-items:center; gap:10px; width:100%; min-width:0;">' +
               '<div class="place-thumb"><img src="' + (i.thumb || defThumb) + '" alt="' + i.place + '" loading="lazy" /></div>' +
-              '<div>' +
+              '<div style="flex:1; min-width:0;">' +
                 '<div style="font-size:11px; font-weight:800; color:var(--c-plum);">Day ' + i.day + (i.date ? (' (' + i.date + ')') : '') + ' · ' + i.time + '</div>' +
-                '<div style="font-size:13px; font-weight:800;">' + i.place + '</div>' +
-                '<div style="font-size:11px; color:var(--text-muted);">' + (i.note || '') + '</div>' +
+                '<div style="font-size:13px; font-weight:800; word-break:keep-all;">' + i.place + '</div>' +
+                '<div style="font-size:11px; color:var(--text-muted); word-break:break-word;">' + (i.note || '') + '</div>' +
               '</div>' +
             '</div>';
           var itEditBtn = document.createElement('button');
@@ -4013,7 +4009,7 @@
           btn.addEventListener('click', function () { openMap(i.place); });
 
           var itBtns = document.createElement('div');
-          itBtns.style.cssText = 'display:flex; gap:4px; flex-wrap:wrap; flex-shrink:0;';
+          itBtns.style.cssText = 'display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end; width:100%; padding-top:4px; border-top:1px dashed color-mix(in srgb, var(--c-forest) 14%, transparent);';
           itBtns.appendChild(btn);
           itBtns.appendChild(itEditBtn);
           itBtns.appendChild(itDelBtn);
@@ -4207,10 +4203,8 @@
       }
 
       function renderLinkedDay() {
-        var t = activeTrip(), d = document.getElementById('logDate').value;
-        var items = t.itinerary.filter(function (i) { return i.date === d; }).map(function (i) { return i.place; })
-          .concat(t.checklist.filter(function (c) { return c.dueDate === d; }).map(function (c) { return c.title; }));
-        document.getElementById('logLinkedItems').textContent = items.length ? items.join(' · ') : '연동된 일정/할 일 없음';
+        var el = document.getElementById('logLinkedItems');
+        if (el) el.textContent = '';
       }
 
       function checkLogLen() {
@@ -4390,19 +4384,49 @@
           var thumbSrc = (l.photos && l.photos[0]) ? l.photos[0] : defThumb;
           var row = document.createElement('div');
           row.className = 'simple-row';
-          row.style.cursor = 'pointer';
+          row.style.cssText = 'cursor:pointer; flex-direction:column; align-items:stretch; gap:8px;';
           row.innerHTML =
-            '<div style="display:flex; align-items:center; gap:10px; flex:1; min-width:0;">' +
+            '<div style="display:flex; align-items:center; gap:10px; width:100%; min-width:0;">' +
               '<div class="log-thumb"><img src="' + thumbSrc + '" alt="' + l.title + '" loading="lazy" /></div>' +
-              '<div style="min-width:0;">' +
-                '<span class="pill pill-sage">' + l.date + '</span>' +
-                '<div style="font-size:14px; font-weight:800; margin-top:3px;">' + l.title + '</div>' +
+              '<div style="min-width:0; flex:1;">' +
+                '<div style="display:flex; justify-content:space-between; align-items:center; gap:6px;">' +
+                  '<span class="pill pill-sage">' + l.date + '</span>' +
+                  '<span class="pill pill-lime"><span>' + ((l.photos || []).length) + '/5</span></span>' +
+                '</div>' +
+                '<div style="font-size:14px; font-weight:800; margin-top:4px;">' + l.title + '</div>' +
                 '<div style="font-family:\x27Gowun Batang\x27, serif; font-size:13px; line-height:1.65; color:var(--text-muted);">' + (l.html || '') + '</div>' +
                 (l.sns ? ('<a href="' + l.sns + '" target="_blank" rel="noopener" style="font-size:11px; color:var(--c-plum); font-weight:700; display:inline-flex; align-items:center; gap:3px; margin-top:3px;"><span>SNS 링크 열기</span></a>') : '') +
               '</div>' +
-            '</div>' +
-            '<span class="pill pill-lime"><span>' + ((l.photos || []).length) + '/5</span></span>';
-          row.addEventListener('click', function () {
+            '</div>';
+          var actBar = document.createElement('div');
+          actBar.style.cssText = 'display:flex; gap:6px; justify-content:flex-end; padding-top:4px; border-top:1px dashed color-mix(in srgb, var(--c-forest) 14%, transparent);';
+          var editBtn = document.createElement('button');
+          editBtn.type = 'button';
+          editBtn.className = 'btn btn-outline btn-sm';
+          editBtn.textContent = '수정';
+          editBtn.addEventListener('click', function (ev) {
+            ev.preventDefault();
+            ev.stopPropagation();
+            openLogEditorPopup(l);
+          });
+          var delBtn = document.createElement('button');
+          delBtn.type = 'button';
+          delBtn.className = 'btn btn-outline btn-sm';
+          delBtn.style.color = 'var(--c-plum)';
+          delBtn.textContent = '삭제';
+          delBtn.addEventListener('click', function (ev) {
+            ev.preventDefault();
+            ev.stopPropagation();
+            if (!confirm('이 일기를 삭제할까요?')) return;
+            t.travelLogs = (t.travelLogs || []).filter(function (x) { return String(x.id) !== String(l.id); });
+            saveState('일기가 삭제되었습니다');
+            renderTravelog();
+          });
+          actBar.appendChild(editBtn);
+          actBar.appendChild(delBtn);
+          row.appendChild(actBar);
+          row.addEventListener('click', function (ev) {
+            if (ev.target.closest('button') || ev.target.closest('a')) return;
             openLogDetailPopup(l);
           });
           feed.appendChild(row);
@@ -4839,7 +4863,7 @@
         }
         if (statusEl) {
           statusEl.textContent = curKey
-            ? ('등록 완료 (' + maskApiKeyPreview(curKey) + ') · 모델: gemini-3.8-flash · 계속 유지됨')
+            ? ('등록 완료 (' + maskApiKeyPreview(curKey) + ') · 기본: gemini-3.8-flash → Flash-Lite 자동 전환')
             : '등록된 API 키가 없습니다. 입력 후 [API 키 저장]을 눌러 주세요.';
         }
       }
@@ -5107,7 +5131,7 @@
             box.scrollTop = box.scrollHeight;
           }
 
-          var candidateModels = ['gemini-3.8-flash'];
+          var candidateModels = ['gemini-3.8-flash', 'gemini-3.5-flash-lite', 'gemini-3.1-flash-lite'];
 
           function isTransientDemandError(err) {
             var msg = String((err && err.message) || '').toLowerCase();
@@ -5120,6 +5144,15 @@
               msg.indexOf('unavailable') >= 0;
           }
 
+          function isModelUnavailableError(err) {
+            var msg = String((err && err.message) || '').toLowerCase();
+            var st = Number((err && err.status) || 0);
+            return st === 404 ||
+              msg.indexOf('not found') >= 0 ||
+              msg.indexOf('no longer available') >= 0 ||
+              msg.indexOf('not supported') >= 0;
+          }
+
           function sleepMs(ms) {
             return new Promise(function (resolve) { setTimeout(resolve, ms); });
           }
@@ -5129,12 +5162,12 @@
             var att = attempt || 0;
             var modelName = candidateModels[idx];
             if (!modelName) {
-              return Promise.reject(new Error('모든 대체 모델 호출이 실패했습니다. 잠시 후 다시 시도해 주세요.'));
+              return Promise.reject(new Error('모든 Flash-Lite 대체 모델 호출이 실패했습니다. 잠시 후 다시 시도해 주세요.'));
             }
             if (pendEl) {
               pendEl.textContent = (idx === 0 && att === 0)
                 ? 'Gemini 답변 생성 중...'
-                : ('서버 혼잡으로 재시도 중... (' + modelName + ', ' + (att + 1) + '차)');
+                : ('대체 모델로 전환·재시도 중... (' + modelName + ', ' + (att + 1) + '차)');
             }
             return fetch('https://generativelanguage.googleapis.com/v1beta/models/' + modelName + ':generateContent?key=' + encodeURIComponent(k), {
               method: 'POST',
@@ -5153,14 +5186,23 @@
                 });
               })
               .catch(function (err) {
-                if (!isTransientDemandError(err)) {
+                if (isTransientDemandError(err)) {
+                  if (att < 2) {
+                    var waitMs = 700 * (att + 1);
+                    return sleepMs(waitMs).then(function () {
+                      return callWithRetryAndFallback(idx, att + 1);
+                    });
+                  }
+                  if (idx + 1 < candidateModels.length) {
+                    return sleepMs(350).then(function () {
+                      return callWithRetryAndFallback(idx + 1, 0);
+                    });
+                  }
                   throw err;
                 }
-                // Retry same model up to 4 times with progressive backoff when 503/429/high demand occurs
-                if (att < 4) {
-                  var waitMs = 800 + att * 900;
-                  return sleepMs(waitMs).then(function () {
-                    return callWithRetryAndFallback(idx, att + 1);
+                if (isModelUnavailableError(err) && idx + 1 < candidateModels.length) {
+                  return sleepMs(200).then(function () {
+                    return callWithRetryAndFallback(idx + 1, 0);
                   });
                 }
                 throw err;
@@ -5969,6 +6011,8 @@ tickClock();
           });
           document.getElementById('itPlace').value = ''; document.getElementById('itNote').value = '';
           saveState('일정 추가됨');
+          if (typeof renderItMapTab === 'function') renderItMapTab();
+          if (typeof renderLinkedDay === 'function') renderLinkedDay();
         });
         document.getElementById('fxAmtIn').addEventListener('input', calcFx);
         document.getElementById('fxTaxPctIn').addEventListener('input', function () {
@@ -6139,15 +6183,31 @@ tickClock();
             html: el.innerHTML,
             photos: draftImgs.slice()
           };
-          if (editLogId) {
-            var i = t.travelLogs.findIndex(function (x) { return x.id === editLogId; });
-            if (i >= 0) t.travelLogs[i] = payload;
+          var targetEditId = editLogId ? String(editLogId) : '';
+          if (targetEditId) {
+            var idxFound = t.travelLogs.findIndex(function (x) { return String(x.id) === targetEditId; });
+            if (idxFound >= 0) {
+              t.travelLogs[idxFound] = payload;
+            } else {
+              t.travelLogs.unshift(payload);
+            }
           } else {
             t.travelLogs.unshift(payload);
           }
-          newLogForm();
+          editLogId = null;
+          draftImgs = [];
+          document.getElementById('logTitle').value = '';
+          document.getElementById('logSns').value = '';
+          document.getElementById('logEditor').innerHTML = '';
+          renderLogPhotos();
+          checkLogLen();
           closeLogEditorPopup();
           saveState('일기 저장됨');
+          if (currentTab !== 'travelog') {
+            switchTab('travelog');
+          } else {
+            renderTravelog();
+          }
         });
         document.getElementById('btnGlobalSearch').addEventListener('click', runGlobalSearch);
         document.getElementById('globalSearchIn').addEventListener('keydown', function (e) {
@@ -7417,9 +7477,9 @@ tickClock();
               syncGhInputsFromStorage();
             }
           }
-          if (prevTab === 'workspace' && prevActiveId && state.trips.some(function (x) { return x.id === prevActiveId; })) {
+          if (prevTab !== 'hub' && prevActiveId && state.trips.some(function (x) { return x.id === prevActiveId; })) {
             state.activeTripId = prevActiveId;
-          } else {
+          } else if (prevTab === 'hub') {
             state.activeTripId = null;
           }
           try {
