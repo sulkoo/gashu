@@ -1609,6 +1609,38 @@
       </div>
     </div>
 
+    
+    <div id="itEditSheetModal" class="fx-sheet-modal hidden" role="dialog" aria-modal="true" aria-label="세부 일정 수정" style="z-index:88;">
+      <div class="fx-sheet-card">
+        <div class="sheet-handle"></div>
+        <div class="card-head" style="margin-bottom:10px;">
+          <div class="card-title"><span>세부 일정 수정</span></div>
+          <button type="button" class="btn btn-outline btn-sm" id="btnCloseItEditSheet" aria-label="닫기" title="닫기"><span class="material-symbols-outlined">close</span></button>
+        </div>
+        <div class="cb-setup-box" style="margin-bottom:0;">
+          <div class="cb-row-2">
+            <div style="position:relative; display:flex; align-items:center;">
+              <span style="position:absolute; left:12px; font-size:11px; font-weight:800; color:var(--c-plum); pointer-events:none;">Day</span>
+              <input id="editItDayIn" type="number" min="1" value="1" class="input" style="padding-left:40px;" placeholder="일차 (예: 1)" aria-label="수정 일차(Day)" />
+            </div>
+            <div class="cb-date-wrap" id="editItDateWrap">
+              <span class="cb-date-ph">날짜 선택 (YYYY-MM-DD)</span>
+              <input id="editItDateIn" type="date" class="input" aria-label="수정 일정 날짜 선택" />
+            </div>
+          </div>
+          <div class="cb-row-2">
+            <input id="editItTimeIn" type="time" value="10:00" class="input" aria-label="수정 시간 선택" />
+            <input id="editItPlaceIn" class="input" placeholder="장소명 (예: 요가, 러닝, 수영, 한라산)" />
+          </div>
+          <input id="editItNoteIn" class="input" placeholder="메모 (동선·예약·준비 메모)" />
+          <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:4px;">
+            <button type="button" class="btn btn-outline" id="btnCancelItEditSheet">취소</button>
+            <button type="button" class="btn btn-primary" id="btnSaveItEditSheet"><span>수정 저장</span></button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div id="tripThemePickerModal" class="fx-sheet-modal hidden" role="dialog" aria-modal="true" aria-label="워크스페이스 컬러시스템 선택" style="z-index:88;">
       <div class="fx-sheet-card" style="width:100%; max-width:560px; max-height:84vh; overflow-y:auto;">
         <div class="sheet-handle"></div>
@@ -2111,6 +2143,7 @@
         </div>
         <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:20px; padding-top:14px; border-top:1px solid var(--border);">
           <button type="button" class="btn btn-outline btn-sm" id="btnEditFromLogDetail"><span>수정</span></button>
+          <button type="button" class="btn btn-outline btn-sm" id="btnDeleteFromLogDetail" style="color:var(--c-plum);"><span>삭제</span></button>
           <button type="button" class="btn btn-primary btn-sm" id="btnCloseLogDetail" aria-label="닫기" title="닫기"><span class="material-symbols-outlined">close</span></button>
         </div>
       </div>
@@ -3973,23 +4006,9 @@
           itEditBtn.className = 'btn btn-outline btn-sm';
           itEditBtn.innerHTML = '<span>수정</span>';
           itEditBtn.addEventListener('click', function () {
-            var nPlace = prompt('장소명을 수정하세요:', i.place || '');
-            if (nPlace === null) return;
-            if (!nPlace.trim()) { toast('장소명을 입력해 주세요'); return; }
-            var nDay = prompt('일차(Day)를 입력하세요:', String(i.day || 1));
-            if (nDay === null) return;
-            var nTime = prompt('시간(HH:MM)을 입력하세요:', i.time || '10:00');
-            if (nTime === null) return;
-            var nDate = prompt('날짜(YYYY-MM-DD):', i.date || '');
-            if (nDate === null) return;
-            var nNote = prompt('메모를 수정하세요:', i.note || '');
-            if (nNote === null) return;
-            i.place = nPlace.trim();
-            i.day = Math.max(1, Number(nDay) || 1);
-            i.time = nTime.trim() || i.time;
-            i.date = nDate.trim();
-            i.note = nNote.trim();
-            saveState('일정이 수정되었습니다');
+            if (typeof window.openItineraryEditBottomSheet === 'function') {
+              window.openItineraryEditBottomSheet(t, i);
+            }
           });
 
           var itDelBtn = document.createElement('button');
@@ -5515,6 +5534,25 @@ tickClock();
             if (target) openLogEditorPopup(target);
           });
         }
+        var btnDelDet = document.getElementById('btnDeleteFromLogDetail');
+        if (btnDelDet) {
+          btnDelDet.addEventListener('click', function () {
+            var t = activeTrip();
+            var target = detailLogObj;
+            if (!t || !target) return;
+            if (!confirm('이 일기를 삭제할까요?')) return;
+            var targetId = String(target.id);
+            t.travelLogs = (t.travelLogs || []).filter(function (x) { return String(x.id) !== targetId; });
+            window.__gashuSuppressPopstateToHub = true;
+            closeLogDetailPopup();
+            saveState('일기가 삭제되었습니다');
+            state.activeTripId = t.id;
+            state.lastVisitedTripId = t.id;
+            if (currentTab !== 'travelog') switchTab('travelog');
+            else renderTravelog();
+            setTimeout(function () { window.__gashuSuppressPopstateToHub = false; }, 120);
+          });
+        }
         var btnSlPrev = document.getElementById('btnLogSlidePrev');
         if (btnSlPrev) {
           btnSlPrev.addEventListener('click', function (e) {
@@ -6201,13 +6239,17 @@ tickClock();
           document.getElementById('logEditor').innerHTML = '';
           renderLogPhotos();
           checkLogLen();
+          window.__gashuSuppressPopstateToHub = true;
           closeLogEditorPopup();
           saveState('일기 저장됨');
+          state.activeTripId = t.id;
+          state.lastVisitedTripId = t.id;
           if (currentTab !== 'travelog') {
             switchTab('travelog');
           } else {
             renderTravelog();
           }
+          setTimeout(function () { window.__gashuSuppressPopstateToHub = false; }, 120);
         });
         document.getElementById('btnGlobalSearch').addEventListener('click', runGlobalSearch);
         document.getElementById('globalSearchIn').addEventListener('keydown', function (e) {
@@ -8426,10 +8468,24 @@ tickClock();
 
         ensureHistoryTrap();
 
-        window.addEventListener('popstate', function () {
+        window.addEventListener('popstate', function (ev) {
           ensureHistoryTrap();
+          // If a sheet/modal/popup was just closed by popstate or saving a log, do not force-jump to hub
+          if (window.__gashuSuppressPopstateToHub || (ev && ev.state && ev.state.gashuSheet)) {
+            window.__gashuSuppressPopstateToHub = false;
+            return;
+          }
+          var anyPopupVisible = [
+            'logEditorFullPopup', 'logDetailFullPopup', 'settingsFullPopup',
+            'fxPopupModal', 'budgetPopupModal', 'expensePopupModal',
+            'bookmarkSheetModal', 'tripEditSheetModal', 'tripThemePickerModal', 'newTripModal'
+          ].some(function (id) {
+            var el = document.getElementById(id);
+            return !!(el && !el.classList.contains('hidden'));
+          });
+          if (anyPopupVisible) return;
           var onHub = (currentTab === 'hub') || !hasActiveTrip();
-          if (!onHub) {
+          if (!onHub && currentTab !== 'travelog') {
             if (typeof closeAllBottomSheetsOnFooterNav === 'function') {
               closeAllBottomSheetsOnFooterNav();
             }
@@ -8439,7 +8495,7 @@ tickClock();
             if (typeof toast === 'function') {
               toast('허브 화면으로 이동했습니다');
             }
-          } else if (isStandaloneOrHybrid() && typeof toast === 'function') {
+          } else if (isStandaloneOrHybrid() && onHub && typeof toast === 'function') {
             toast('허브 화면에서는 뒤로가기로 앱이 종료되지 않습니다');
           }
         });
@@ -8512,6 +8568,110 @@ tickClock();
           }
         } catch (e) {}
       })();
+
+      (function syncIndexAndHubSvgLogosFromTrip() {
+        var DARK_LOGO_URI = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODgiIGhlaWdodD0iNDYiIHZpZXdCb3g9IjEwIDEwIDg4IDQ2IiBmaWxsPSJub25lIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPgo8cGF0aCBkPSJNNDYuNzIgMzIuODMyVjQ5Ljk2OEM0Ni43MiA1MS41MDQgNDYuMzY4IDUyLjU5MiA0NS42NjQgNTMuMjMyQzQ0Ljk5MiA1My44NzIgNDQuMTEyIDU0LjE5MiA0My4wMjQgNTQuMTkyQzQyLjY0IDU0LjE5MiA0Mi4zNTIgNTQuMTI4IDQyLjE2IDU0QzQxLjk2OCA1My45MDQgNDEuODcyIDUzLjY4IDQxLjg3MiA1My4zMjhWMTUuOTM2SDQxLjYzMkM0MS4wODggMTUuOTM2IDQwLjYwOCAxNS44NCA0MC4xOTIgMTUuNjQ4QzM5LjgwOCAxNS40MjQgMzkuNDcyIDE1LjE2OCAzOS4xODQgMTQuODhDMzguOTI4IDE0LjU2IDM4LjczNiAxNC4yMjQgMzguNjA4IDEzLjg3MkMzOC40OCAxMy40ODggMzguNDE2IDEzLjE1MiAzOC40MTYgMTIuODY0QzM4LjQxNiAxMi40MTYgMzguNDggMTIuMTI4IDM4LjYwOCAxMkMzOC43NjggMTEuODQgMzkuMDcyIDExLjc2IDM5LjUyIDExLjc2SDQ1LjU2OEM0Ni4wMTYgMTEuNzYgNDYuMzIgMTEuODQgNDYuNDggMTJDNDYuNjQgMTIuMTYgNDYuNzIgMTIuNDY0IDQ2LjcyIDEyLjkxMlYyOC42NTZINTEuODU2QzUyLjU5MiAyOC42NTYgNTIuOTYgMjkuMDI0IDUyLjk2IDI5Ljc2QzUyLjk2IDMwLjAxNiA1Mi44OTYgMzAuMzIgNTIuNzY4IDMwLjY3MkM1Mi42NCAzMS4wMjQgNTIuNDE2IDMxLjM2IDUyLjA5NiAzMS42OEM1MS43NzYgMzIgNTEuMzQ0IDMyLjI3MiA1MC44IDMyLjQ5NkM1MC4yODggMzIuNzIgNDkuNjMyIDMyLjgzMiA0OC44MzIgMzIuODMySDQ2LjcyWk0zNS4yOTYgMTcuNDI0QzM1LjI5NiAxOS4zNDQgMzUuMDU2IDIxLjI2NCAzNC41NzYgMjMuMTg0QzM0LjA5NiAyNS4xMDQgMzMuNDI0IDI2Ljk2IDMyLjU2IDI4Ljc1MkMzMS43MjggMzAuNTEyIDMwLjc1MiAzMi4xOTIgMjkuNjMyIDMzLjc5MkMyOC41MTIgMzUuMzYgMjcuMjk2IDM2LjggMjUuOTg0IDM4LjExMkMyNC43MDQgMzkuMzkyIDIzLjM2IDQwLjUxMiAyMS45NTIgNDEuNDcyQzIwLjU3NiA0Mi40MzIgMTkuMjE2IDQzLjE1MiAxNy44NzIgNDMuNjMyQzE2LjgxNiA0NC4wMTYgMTUuODcyIDQ0LjE3NiAxNS4wNCA0NC4xMTJDMTQuMjA4IDQ0LjAxNiAxMy41MzYgNDMuNjMyIDEzLjAyNCA0Mi45NkMxMi43MzYgNDIuNjA4IDEyLjYwOCA0Mi4yNzIgMTIuNjQgNDEuOTUyQzEyLjcwNCA0MS42MzIgMTIuOTEyIDQxLjM5MiAxMy4yNjQgNDEuMjMyQzE1LjQ0IDQwLjI0IDE3LjQ4OCAzOS4wMjQgMTkuNDA4IDM3LjU4NEMyMS4zMjggMzYuMTEyIDIzLjA0IDM0LjQ2NCAyNC41NDQgMzIuNjRDMjYuMDQ4IDMwLjgxNiAyNy4yOTYgMjguODMyIDI4LjI4OCAyNi42ODhDMjkuMjggMjQuNTQ0IDI5LjkyIDIyLjI4OCAzMC4yMDggMTkuOTJIMTcuNzc2QzE2Ljk3NiAxOS45MiAxNi4zMDQgMTkuODA4IDE1Ljc2IDE5LjU4NEMxNS4yNDggMTkuMzYgMTQuODMyIDE5LjA4OCAxNC41MTIgMTguNzY4QzE0LjE5MiAxOC40NDggMTMuOTY4IDE4LjExMiAxMy44NCAxNy43NkMxMy43MTIgMTcuNDA4IDEzLjY0OCAxNy4xMDQgMTMuNjQ4IDE2Ljg0OEMxMy42NDggMTYuMTEyIDE0LjAxNiAxNS43NDQgMTQuNzUyIDE1Ljc0NEgzNC4xNDRDMzQuNTkyIDE1Ljc0NCAzNC44OTYgMTUuODI0IDM1LjA1NiAxNS45ODRDMzUuMjE2IDE2LjE0NCAzNS4yOTYgMTYuNDQ4IDM1LjI5NiAxNi44OTZWMTcuNDI0Wk05NC4yMTA4IDM4LjAxNkM5NC45NDY4IDM4LjAxNiA5NS4zMTQ4IDM4LjM4NCA5NS4zMTQ4IDM5LjEyQzk1LjMxNDggMzkuMzc2IDk1LjI1MDcgMzkuNjggOTUuMTIyNyA0MC4wMzJDOTQuOTk0OCA0MC4zODQgOTQuNzcwOCA0MC43MiA5NC40NTA4IDQxLjA0Qzk0LjEzMDggNDEuMzYgOTMuNjk4OCA0MS42MzIgOTMuMTU0OCA0MS44NTZDOTIuNjQyOCA0Mi4wOCA5MS45ODY4IDQyLjE5MiA5MS4xODY4IDQyLjE5Mkg4NS4zNzg4VjQ5Ljk2OEM4NS4zNzg4IDUxLjUwNCA4NS4wMjY3IDUyLjU5MiA4NC4zMjI4IDUzLjIzMkM4My42NTA3IDUzLjg3MiA4Mi43NzA4IDU0LjE5MiA4MS42ODI4IDU0LjE5MkM4MS4yOTg4IDU0LjE5MiA4MS4wMTA3IDU0LjEyOCA4MC44MTg4IDU0QzgwLjYyNjggNTMuOTA0IDgwLjUzMDcgNTMuNjggODAuNTMwNyA1My4zMjhWNDIuMTkySDY5LjA1ODhWNDkuOTY4QzY5LjA1ODggNTEuNTA0IDY4LjcwNjcgNTIuNTkyIDY4LjAwMjggNTMuMjMyQzY3LjMzMDcgNTMuODcyIDY2LjQ1MDggNTQuMTkyIDY1LjM2MjggNTQuMTkyQzY0Ljk3ODggNTQuMTkyIDY0LjY5MDggNTQuMTI4IDY0LjQ5ODcgNTRDNjQuMzA2OCA1My45MDQgNjQuMjEwOCA1My42OCA2NC4yMTA4IDUzLjMyOFY0Mi4xOTJINTguNDUwN0M1Ny42NTA3IDQyLjE5MiA1Ni45Nzg4IDQyLjA4IDU2LjQzNDcgNDEuODU2QzU1LjkyMjcgNDEuNjMyIDU1LjUwNjggNDEuMzYgNTUuMTg2NyA0MS4wNEM1NC44NjY3IDQwLjcyIDU0LjY0MjcgNDAuMzg0IDU0LjUxNDggNDAuMDMyQzU0LjM4NjcgMzkuNjggNTQuMzIyOCAzOS4zNzYgNTQuMzIyOCAzOS4xMkM1NC4zMjI4IDM4LjM4NCA1NC42OTA4IDM4LjAxNiA1NS40MjY4IDM4LjAxNkg5NC4yMTA4Wk02OC42NzQ4IDE2LjM2OEM2OC42NzQ4IDE1LjkyIDY4LjczODggMTUuNjMyIDY4Ljg2NjcgMTUuNTA0QzY5LjAyNjggMTUuMzQ0IDY5LjMzMDcgMTUuMjY0IDY5Ljc3ODggMTUuMjY0SDc2LjA2NjdDNzYuNTE0NyAxNS4yNjQgNzYuODE4NyAxNS4zNDQgNzYuOTc4OCAxNS41MDRDNzcuMTM4NyAxNS42NjQgNzcuMjE4OCAxNS45NjggNzcuMjE4OCAxNi40MTZWMTkuMkM3Ny4yMTg4IDIyLjA0OCA3OC4zMzg4IDI0LjQxNiA4MC41Nzg4IDI2LjMwNEM4Mi44MTg4IDI4LjE2IDg1LjkyMjggMjkuNTM2IDg5Ljg5MDggMzAuNDMyQzkwLjMzODggMzAuNTI4IDkwLjU5NDcgMzAuNzM2IDkwLjY1ODggMzEuMDU2QzkwLjc1NDggMzEuMzc2IDkwLjY3NDggMzEuNzI4IDkwLjQxODggMzIuMTEyQzg5LjkwNjggMzIuOTQ0IDg5LjIzNDggMzMuNDU2IDg4LjQwMjggMzMuNjQ4Qzg3LjYwMjggMzMuODA4IDg2LjkzMDcgMzMuODI0IDg2LjM4NjcgMzMuNjk2QzgzLjk4NjggMzMuMTUyIDgxLjgyNjggMzIuMzg0IDc5LjkwNjggMzEuMzkyQzc3Ljk4NjggMzAuNCA3Ni4yNzQ3IDI4Ljk3NiA3NC43NzA4IDI3LjEyQzczLjI2NjggMjguOTc2IDcxLjU1NDcgMzAuNCA2OS42MzQ4IDMxLjM5MkM2Ny43NDY3IDMyLjM4NCA2NS42MDI4IDMzLjE1MiA2My4yMDI4IDMzLjY5NkM2Mi42NTg4IDMzLjgyNCA2MS45NzA3IDMzLjgwOCA2MS4xMzg4IDMzLjY0OEM2MC4zMzg3IDMzLjQ1NiA1OS42ODI4IDMyLjk0NCA1OS4xNzA3IDMyLjExMkM1OC45MTQ3IDMxLjcyOCA1OC44MTg3IDMxLjM3NiA1OC44ODI4IDMxLjA1NkM1OC45Nzg4IDMwLjczNiA1OS4yNTA4IDMwLjUyOCA1OS42OTg3IDMwLjQzMkM2My41NzA4IDI5LjUzNiA2Ni42MjY4IDI4LjE3NiA2OC44NjY3IDI2LjM1MkM3MS4xMzg4IDI0LjUyOCA3Mi4zMDY4IDIyLjIyNCA3Mi4zNzA4IDE5LjQ0SDcxLjg5MDhDNzEuMzQ2OCAxOS40NCA3MC44NjY4IDE5LjM0NCA3MC40NTA4IDE5LjE1MkM3MC4wNjY3IDE4LjkyOCA2OS43MzA4IDE4LjY3MiA2OS40NDI4IDE4LjM4NEM2OS4xODY4IDE4LjA2NCA2OC45OTQ4IDE3LjcyOCA2OC44NjY3IDE3LjM3NkM2OC43Mzg4IDE2Ljk5MiA2OC42NzQ4IDE2LjY1NiA2OC42NzQ4IDE2LjM2OFoiIGZpbGw9IiMxMTEzMTUiLz4KPC9zdmc+';
+        var LIGHT_LOGO_URI = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODgiIGhlaWdodD0iNDYiIHZpZXdCb3g9IjEwIDEwIDg4IDQ2IiBmaWxsPSJub25lIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPgo8cGF0aCBkPSJNNDYuNzIgMzIuODMyVjQ5Ljk2OEM0Ni43MiA1MS41MDQgNDYuMzY4IDUyLjU5MiA0NS42NjQgNTMuMjMyQzQ0Ljk5MiA1My44NzIgNDQuMTEyIDU0LjE5MiA0My4wMjQgNTQuMTkyQzQyLjY0IDU0LjE5MiA0Mi4zNTIgNTQuMTI4IDQyLjE2IDU0QzQxLjk2OCA1My45MDQgNDEuODcyIDUzLjY4IDQxLjg3MiA1My4zMjhWMTUuOTM2SDQxLjYzMkM0MS4wODggMTUuOTM2IDQwLjYwOCAxNS44NCA0MC4xOTIgMTUuNjQ4QzM5LjgwOCAxNS40MjQgMzkuNDcyIDE1LjE2OCAzOS4xODQgMTQuODhDMzguOTI4IDE0LjU2IDM4LjczNiAxNC4yMjQgMzguNjA4IDEzLjg3MkMzOC40OCAxMy40ODggMzguNDE2IDEzLjE1MiAzOC40MTYgMTIuODY0QzM4LjQxNiAxMi40MTYgMzguNDggMTIuMTI4IDM4LjYwOCAxMkMzOC43NjggMTEuODQgMzkuMDcyIDExLjc2IDM5LjUyIDExLjc2SDQ1LjU2OEM0Ni4wMTYgMTEuNzYgNDYuMzIgMTEuODQgNDYuNDggMTJDNDYuNjQgMTIuMTYgNDYuNzIgMTIuNDY0IDQ2LjcyIDEyLjkxMlYyOC42NTZINTEuODU2QzUyLjU5MiAyOC42NTYgNTIuOTYgMjkuMDI0IDUyLjk2IDI5Ljc2QzUyLjk2IDMwLjAxNiA1Mi44OTYgMzAuMzIgNTIuNzY4IDMwLjY3MkM1Mi42NCAzMS4wMjQgNTIuNDE2IDMxLjM2IDUyLjA5NiAzMS42OEM1MS43NzYgMzIgNTEuMzQ0IDMyLjI3MiA1MC44IDMyLjQ5NkM1MC4yODggMzIuNzIgNDkuNjMyIDMyLjgzMiA0OC44MzIgMzIuODMySDQ2LjcyWk0zNS4yOTYgMTcuNDI0QzM1LjI5NiAxOS4zNDQgMzUuMDU2IDIxLjI2NCAzNC41NzYgMjMuMTg0QzM0LjA5NiAyNS4xMDQgMzMuNDI0IDI2Ljk2IDMyLjU2IDI4Ljc1MkMzMS43MjggMzAuNTEyIDMwLjc1MiAzMi4xOTIgMjkuNjMyIDMzLjc5MkMyOC41MTIgMzUuMzYgMjcuMjk2IDM2LjggMjUuOTg0IDM4LjExMkMyNC43MDQgMzkuMzkyIDIzLjM2IDQwLjUxMiAyMS45NTIgNDEuNDcyQzIwLjU3NiA0Mi40MzIgMTkuMjE2IDQzLjE1MiAxNy44NzIgNDMuNjMyQzE2LjgxNiA0NC4wMTYgMTUuODcyIDQ0LjE3NiAxNS4wNCA0NC4xMTJDMTQuMjA4IDQ0LjAxNiAxMy41MzYgNDMuNjMyIDEzLjAyNCA0Mi45NkMxMi43MzYgNDIuNjA4IDEyLjYwOCA0Mi4yNzIgMTIuNjQgNDEuOTUyQzEyLjcwNCA0MS42MzIgMTIuOTEyIDQxLjM5MiAxMy4yNjQgNDEuMjMyQzE1LjQ0IDQwLjI0IDE3LjQ4OCAzOS4wMjQgMTkuNDA4IDM3LjU4NEMyMS4zMjggMzYuMTEyIDIzLjA0IDM0LjQ2NCAyNC41NDQgMzIuNjRDMjYuMDQ4IDMwLjgxNiAyNy4yOTYgMjguODMyIDI4LjI4OCAyNi42ODhDMjkuMjggMjQuNTQ0IDI5LjkyIDIyLjI4OCAzMC4yMDggMTkuOTJIMTcuNzc2QzE2Ljk3NiAxOS45MiAxNi4zMDQgMTkuODA4IDE1Ljc2IDE5LjU4NEMxNS4yNDggMTkuMzYgMTQuODMyIDE5LjA4OCAxNC41MTIgMTguNzY4QzE0LjE5MiAxOC40NDggMTMuOTY4IDE4LjExMiAxMy44NCAxNy43NkMxMy43MTIgMTcuNDA4IDEzLjY0OCAxNy4xMDQgMTMuNjQ4IDE2Ljg0OEMxMy42NDggMTYuMTEyIDE0LjAxNiAxNS43NDQgMTQuNzUyIDE1Ljc0NEgzNC4xNDRDMzQuNTkyIDE1Ljc0NCAzNC44OTYgMTUuODI0IDM1LjA1NiAxNS45ODRDMzUuMjE2IDE2LjE0NCAzNS4yOTYgMTYuNDQ4IDM1LjI5NiAxNi44OTZWMTcuNDI0Wk05NC4yMTA4IDM4LjAxNkM5NC45NDY4IDM4LjAxNiA5NS4zMTQ4IDM4LjM4NCA5NS4zMTQ4IDM5LjEyQzk1LjMxNDggMzkuMzc2IDk1LjI1MDcgMzkuNjggOTUuMTIyNyA0MC4wMzJDOTQuOTk0OCA0MC4zODQgOTQuNzcwOCA0MC43MiA5NC40NTA4IDQxLjA0Qzk0LjEzMDggNDEuMzYgOTMuNjk4OCA0MS42MzIgOTMuMTU0OCA0MS44NTZDOTIuNjQyOCA0Mi4wOCA5MS45ODY4IDQyLjE5MiA5MS4xODY4IDQyLjE5Mkg4NS4zNzg4VjQ5Ljk2OEM4NS4zNzg4IDUxLjUwNCA4NS4wMjY3IDUyLjU5MiA4NC4zMjI4IDUzLjIzMkM4My42NTA3IDUzLjg3MiA4Mi43NzA4IDU0LjE5MiA4MS42ODI4IDU0LjE5MkM4MS4yOTg4IDU0LjE5MiA4MS4wMTA3IDU0LjEyOCA4MC44MTg4IDU0QzgwLjYyNjggNTMuOTA0IDgwLjUzMDcgNTMuNjggODAuNTMwNyA1My4zMjhWNDIuMTkySDY5LjA1ODhWNDkuOTY4QzY5LjA1ODggNTEuNTA0IDY4LjcwNjcgNTIuNTkyIDY4LjAwMjggNTMuMjMyQzY3LjMzMDcgNTMuODcyIDY2LjQ1MDggNTQuMTkyIDY1LjM2MjggNTQuMTkyQzY0Ljk3ODggNTQuMTkyIDY0LjY5MDggNTQuMTI4IDY0LjQ5ODcgNTRDNjQuMzA2OCA1My45MDQgNjQuMjEwOCA1My42OCA2NC4yMTA4IDUzLjMyOFY0Mi4xOTJINTguNDUwN0M1Ny42NTA3IDQyLjE5MiA1Ni45Nzg4IDQyLjA4IDU2LjQzNDcgNDEuODU2QzU1LjkyMjcgNDEuNjMyIDU1LjUwNjggNDEuMzYgNTUuMTg2NyA0MS4wNEM1NC44NjY3IDQwLjcyIDU0LjY0MjcgNDAuMzg0IDU0LjUxNDggNDAuMDMyQzU0LjM4NjcgMzkuNjggNTQuMzIyOCAzOS4zNzYgNTQuMzIyOCAzOS4xMkM1NC4zMjI4IDM4LjM4NCA1NC42OTA4IDM4LjAxNiA1NS40MjY4IDM4LjAxNkg5NC4yMTA4Wk02OC42NzQ4IDE2LjM2OEM2OC42NzQ4IDE1LjkyIDY4LjczODggMTUuNjMyIDY4Ljg2NjcgMTUuNTA0QzY5LjAyNjggMTUuMzQ0IDY5LjMzMDcgMTUuMjY0IDY5Ljc3ODggMTUuMjY0SDc2LjA2NjdDNzYuNTE0NyAxNS4yNjQgNzYuODE4NyAxNS4zNDQgNzYuOTc4OCAxNS41MDRDNzcuMTM4NyAxNS42NjQgNzcuMjE4OCAxNS45NjggNzcuMjE4OCAxNi40MTZWMTkuMkM3Ny4yMTg4IDIyLjA0OCA3OC4zMzg4IDI0LjQxNiA4MC41Nzg4IDI2LjMwNEM4Mi44MTg4IDI4LjE2IDg1LjkyMjggMjkuNTM2IDg5Ljg5MDggMzAuNDMyQzkwLjMzODggMzAuNTI4IDkwLjU5NDcgMzAuNzM2IDkwLjY1ODggMzEuMDU2QzkwLjc1NDggMzEuMzc2IDkwLjY3NDggMzEuNzI4IDkwLjQxODggMzIuMTEyQzg5LjkwNjggMzIuOTQ0IDg5LjIzNDggMzMuNDU2IDg4LjQwMjggMzMuNjQ4Qzg3LjYwMjggMzMuODA4IDg2LjkzMDcgMzMuODI0IDg2LjM4NjcgMzMuNjk2QzgzLjk4NjggMzMuMTUyIDgxLjgyNjggMzIuMzg0IDc5LjkwNjggMzEuMzkyQzc3Ljk4NjggMzAuNCA3Ni4yNzQ3IDI4Ljk3NiA3NC43NzA4IDI3LjEyQzczLjI2NjggMjguOTc2IDcxLjU1NDcgMzAuNCA2OS42MzQ4IDMxLjM5MkM2Ny43NDY3IDMyLjM4NCA2NS42MDI4IDMzLjE1MiA2My4yMDI4IDMzLjY5NkM2Mi42NTg4IDMzLjgyNCA2MS45NzA3IDMzLjgwOCA2MS4xMzg4IDMzLjY0OEM2MC4zMzg3IDMzLjQ1NiA1OS42ODI4IDMyLjk0NCA1OS4xNzA3IDMyLjExMkM1OC45MTQ3IDMxLjcyOCA1OC44MTg3IDMxLjM3NiA1OC44ODI4IDMxLjA1NkM1OC45Nzg4IDMwLjczNiA1OS4yNTA4IDMwLjUyOCA1OS42OTg3IDMwLjQzMkM2My41NzA4IDI5LjUzNiA2Ni42MjY4IDI4LjE3NiA2OC44NjY3IDI2LjM1MkM3MS4xMzg4IDI0LjUyOCA3Mi4zMDY4IDIyLjIyNCA3Mi4zNzA4IDE5LjQ0SDcxLjg5MDhDNzEuMzQ2OCAxOS40NCA3MC44NjY4IDE5LjM0NCA3MC40NTA4IDE5LjE1MkM3MC4wNjY3IDE4LjkyOCA2OS43MzA4IDE4LjY3MiA2OS40NDI4IDE4LjM4NEM2OS4xODY4IDE4LjA2NCA2OC45OTQ4IDE3LjcyOCA2OC44NjY3IDE3LjM3NkM2OC43Mzg4IDE2Ljk5MiA2OC42NzQ4IDE2LjY1NiA2OC42NzQ4IDE2LjM2OFoiIGZpbGw9IndoaXRlIi8+Cjwvc3ZnPg==';
+        function applySvgLogos() {
+          var tImg = document.getElementById('topHeaderLogoImg');
+          if (tImg && !tImg.getAttribute('src')) tImg.setAttribute('src', DARK_LOGO_URI);
+          document.querySelectorAll('[data-gashu-logo], #indexLogoSlot, #openingLogoSlot').forEach(function (el) {
+            var useLight = el.getAttribute('data-logo-variant') === 'light';
+            var uri = useLight ? LIGHT_LOGO_URI : DARK_LOGO_URI;
+            if (el.tagName === 'IMG') {
+              el.setAttribute('src', uri);
+            } else {
+              el.innerHTML = '<img src="' + uri + '" alt="가슈 로고" style="height:34px; width:auto; display:block;" />';
+            }
+          });
+        }
+        if (document.readyState === 'loading') {
+          document.addEventListener('DOMContentLoaded', applySvgLogos);
+        } else {
+          applySvgLogos();
+        }
+      })();
+
+
+      (function setupItineraryEditBottomSheet() {
+        var editingTripRef = null;
+        var editingItemRef = null;
+
+        function closeItEditSheet() {
+          editingTripRef = null;
+          editingItemRef = null;
+          var m = document.getElementById('itEditSheetModal');
+          if (m) m.classList.add('hidden');
+          if (typeof updateFloatingAndFooter === 'function') updateFloatingAndFooter();
+        }
+
+        window.openItineraryEditBottomSheet = function (tripObj, itemObj) {
+          if (!tripObj || !itemObj) return;
+          editingTripRef = tripObj;
+          editingItemRef = itemObj;
+          var dayEl = document.getElementById('editItDayIn');
+          var dateEl = document.getElementById('editItDateIn');
+          var dateWrap = document.getElementById('editItDateWrap');
+          var timeEl = document.getElementById('editItTimeIn');
+          var placeEl = document.getElementById('editItPlaceIn');
+          var noteEl = document.getElementById('editItNoteIn');
+          if (dayEl) dayEl.value = String(itemObj.day || 1);
+          if (dateEl) dateEl.value = itemObj.date || '';
+          if (dateWrap && dateEl) dateWrap.classList.toggle('is-empty', !dateEl.value);
+          if (timeEl) timeEl.value = itemObj.time || '10:00';
+          if (placeEl) placeEl.value = itemObj.place || '';
+          if (noteEl) noteEl.value = itemObj.note || '';
+          var m = document.getElementById('itEditSheetModal');
+          if (m) m.classList.remove('hidden');
+          if (typeof updateFloatingAndFooter === 'function') updateFloatingAndFooter();
+        };
+
+        var dIn = document.getElementById('editItDateIn');
+        var dWrp = document.getElementById('editItDateWrap');
+        if (dIn && dWrp) {
+          dIn.addEventListener('change', function () { dWrp.classList.toggle('is-empty', !dIn.value); });
+          dIn.addEventListener('input', function () { dWrp.classList.toggle('is-empty', !dIn.value); });
+        }
+
+        var cBtn1 = document.getElementById('btnCloseItEditSheet');
+        var cBtn2 = document.getElementById('btnCancelItEditSheet');
+        var mBackdrop = document.getElementById('itEditSheetModal');
+        if (cBtn1) cBtn1.addEventListener('click', closeItEditSheet);
+        if (cBtn2) cBtn2.addEventListener('click', closeItEditSheet);
+        if (mBackdrop) {
+          mBackdrop.addEventListener('click', function (e) {
+            if (e.target && e.target.id === 'itEditSheetModal') closeItEditSheet();
+          });
+        }
+
+        var saveItBtn = document.getElementById('btnSaveItEditSheet');
+        if (saveItBtn) {
+          saveItBtn.addEventListener('click', function () {
+            if (!editingTripRef || !editingItemRef) return;
+            var placeVal = ((document.getElementById('editItPlaceIn') && document.getElementById('editItPlaceIn').value) || '').trim();
+            if (!placeVal) {
+              toast('장소명을 입력해 주세요');
+              return;
+            }
+            var dayVal = Math.max(1, Number((document.getElementById('editItDayIn') && document.getElementById('editItDayIn').value) || 1) || 1);
+            var dateVal = (document.getElementById('editItDateIn') && document.getElementById('editItDateIn').value) || '';
+            var timeVal = ((document.getElementById('editItTimeIn') && document.getElementById('editItTimeIn').value) || '').trim() || '10:00';
+            var noteVal = ((document.getElementById('editItNoteIn') && document.getElementById('editItNoteIn').value) || '').trim();
+
+            editingItemRef.place = placeVal;
+            editingItemRef.day = dayVal;
+            editingItemRef.date = dateVal;
+            editingItemRef.time = timeVal;
+            editingItemRef.note = noteVal;
+
+            closeItEditSheet();
+            saveState('일정이 수정되었습니다');
+            if (typeof renderIt === 'function') renderIt();
+            if (typeof renderItMapTab === 'function') renderItMapTab();
+          });
+        }
+      })();
+
       tickClock();
       setInterval(tickClock, 1000);
     })();
