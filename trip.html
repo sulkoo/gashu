@@ -2496,7 +2496,6 @@
           const loaded = loadState();
           if (loaded && Array.isArray(loaded.trips)) {
             state = loaded;
-            // 로그인 직후에는 허브 페이지(#sec-hub)를 기본 노출
             state.activeTripId = null;
             if (typeof switchTab === "function") {
               switchTab("hub");
@@ -2506,6 +2505,17 @@
           }
         }
       }
+      setTimeout(function () {
+        try {
+          var ghRaw = localStorage.getItem("gashu_github_sync_v98");
+          if (ghRaw) {
+            var ghCfg = JSON.parse(ghRaw);
+            if (ghCfg && ghCfg.repo && ghCfg.token && typeof window.__gashuPullNow === "function") {
+              window.__gashuPullNow(true);
+            }
+          }
+        } catch (_) {}
+      }, 250);
 
       if (typeof saveState === "function" && !window.__GASHU_SAVE_WRAPPED__) {
         window.__GASHU_SAVE_WRAPPED__ = true;
@@ -6294,11 +6304,22 @@ tickClock();
             btn.className = 'theme-swatch-btn' + (selectedKey === k ? ' active' : '');
             btn.style.cssText = 'padding:8px 12px 8px 8px; font-size:12px;';
             btn.innerHTML = '<span class="theme-thumb-sq" style="width:24px; height:24px; border-radius:7px; background:' + m.outer + '; --sq-inner:' + m.inner + ';"></span><span>' + m.label + '</span>';
-            btn.addEventListener('click', function () {
+            btn.addEventListener('click', function (ev) {
+              if (ev) { ev.preventDefault(); ev.stopPropagation(); }
               syncTripEditThemePreview(k);
-              var pkModal = document.getElementById('tripThemePickerModal');
-              if (pkModal) pkModal.classList.add('hidden');
-              updateFloatingAndFooter();
+              state.hubTheme = k;
+              var targetTr = (editingTripId && state.trips)
+                ? state.trips.find(function (x) { return x.id === editingTripId; })
+                : activeTrip();
+              if (targetTr) {
+                targetTr.themeKey = k;
+              }
+              if (typeof applyActiveTheme === 'function') {
+                applyActiveTheme();
+              }
+              if (typeof saveState === 'function') {
+                saveState(m.label + ' 컬러시스템 적용됨');
+              }
             });
             wrap.appendChild(btn);
           });
@@ -7285,6 +7306,16 @@ tickClock();
           var cleanToken = (token || '').trim();
           try {
             localStorage.setItem(KEY_GH_CFG, JSON.stringify({ repo: cleanRepo, token: cleanToken }));
+            if (typeof state === 'object' && state) {
+              state.syncedGhConfig = { repo: cleanRepo, token: cleanToken };
+              var enc = (typeof window.encryptStatePayload === 'function')
+                ? window.encryptStatePayload(state)
+                : JSON.stringify(state);
+              localStorage.setItem(KEY_STATE, enc);
+              if (window.__GASHU_CURRENT_ACCOUNT__) {
+                localStorage.setItem(KEY_STATE + '::' + encodeURIComponent(window.__GASHU_CURRENT_ACCOUNT__), enc);
+              }
+            }
           } catch (e) {}
           return { repo: cleanRepo, token: cleanToken };
         }
@@ -7307,6 +7338,11 @@ tickClock();
           var copy = JSON.parse(JSON.stringify(state || {}));
           var gemK = (typeof getGeminiKeyVal === 'function') ? getGeminiKeyVal() : (copy.geminiApiKey || '');
           if (gemK) copy.geminiApiKey = gemK;
+          if (!copy.hubTheme && state && state.hubTheme) copy.hubTheme = state.hubTheme;
+          var ghCfg = readGhConfig();
+          if (ghCfg && (ghCfg.repo || ghCfg.token)) {
+            copy.syncedGhConfig = { repo: ghCfg.repo || DEFAULT_REPO, token: ghCfg.token || '' };
+          }
           return copy;
         }
 
@@ -7315,8 +7351,10 @@ tickClock();
           var prevActiveId = state.activeTripId;
           var prevTab = currentTab;
           state = Object.assign({}, state, remoteObj, {
+            hubTheme: remoteObj.hubTheme || state.hubTheme || 'forest_petal',
             trips: remoteObj.trips.map(function (t) {
               return Object.assign({}, t, {
+                themeKey: t.themeKey || remoteObj.hubTheme || 'forest_petal',
                 travelLogs: t.travelLogs || [],
                 billing: t.billing || [],
                 itinerary: t.itinerary || [],
@@ -7329,6 +7367,15 @@ tickClock();
           if (state.geminiApiKey) {
             try { localStorage.setItem(KEY_GEM, String(state.geminiApiKey).trim()); } catch (e) {}
             if (typeof refreshSettingsGemKeyUi === 'function') refreshSettingsGemKeyUi();
+          }
+          if (remoteObj.syncedGhConfig && typeof remoteObj.syncedGhConfig === 'object') {
+            var rRepo = (remoteObj.syncedGhConfig.repo || '').trim();
+            var rTok = (remoteObj.syncedGhConfig.token || '').trim();
+            if (rRepo || rTok) {
+              var curCfg = readGhConfig();
+              writeGhConfig(rRepo || curCfg.repo, rTok || curCfg.token);
+              syncGhInputsFromStorage();
+            }
           }
           if (prevTab === 'workspace' && prevActiveId && state.trips.some(function (x) { return x.id === prevActiveId; })) {
             state.activeTripId = prevActiveId;
@@ -7362,7 +7409,8 @@ tickClock();
             })
             .then(function (data) {
               if (!data || !data.content) return false;
-              var b64Clean = String(data.content).replace(/ /g, '');
+              var b64Clean = String(data.content).replace(/
+/g, '');
               var rawBin = atob(b64Clean);
               var u8 = new Uint8Array(rawBin.length);
               for (var i = 0; i < rawBin.length; i++) u8[i] = rawBin.charCodeAt(i);
@@ -7500,6 +7548,11 @@ tickClock();
             toast(autoChkEl.checked ? '변경 시 GitHub 자동 동기화 켜짐' : '변경 시 GitHub 자동 동기화 꺼짐');
           });
         }
+
+        window.__gashuPullNow = function (silent) {
+          var cfg = readGhConfig();
+          return pullStateFromGitHub(cfg.repo, cfg.token, !!silent);
+        };
 
         var pullBtnEl = document.getElementById('btnPullFromGitHub');
         if (pullBtnEl) {
