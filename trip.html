@@ -5313,8 +5313,7 @@
                 j.candidates[0].content.parts[0].text) || '응답 내용이 비어 있습니다.';
               var ans = stripMarkdownSymbols(rawAns)
                 .replace(/\s*\(\s*\d+\s*자\s*\)\s*/g, '')
-                .replace(/
-?\s*\d+\s*자\s*$/g, '')
+                .replace(/?\s*\d+\s*자\s*$/g, '')
                 .trim();
               pendEl.style.whiteSpace = 'pre-line';
               pendEl.textContent = ans;
