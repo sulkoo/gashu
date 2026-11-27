@@ -478,9 +478,16 @@
       transition: position 0.15s ease, box-shadow 0.15s ease;
     }
     @media (min-width: 769px) {
-      .chip-tabs.is-pc-sticky {
+      .topbar.is-sticky-visible {
         position: fixed;
         top: 0;
+        left: 0;
+        right: 0;
+        z-index: 45;
+      }
+      .chip-tabs.is-pc-sticky {
+        position: fixed;
+        top: 52px;
         left: 50%;
         transform: translateX(-50%);
         width: 100%;
@@ -2532,6 +2539,27 @@
         if (typeof loadState === "function") {
           const loaded = loadState();
           if (loaded && Array.isArray(loaded.trips)) {
+            if (loaded.syncedGhConfig && typeof loaded.syncedGhConfig === "object") {
+              try {
+                var curGhRaw = localStorage.getItem("gashu_github_sync_v98");
+                var curGh = curGhRaw ? JSON.parse(curGhRaw) : {};
+                var mergedGh = {
+                  repo: loaded.syncedGhConfig.repo || curGh.repo || "sulkoo/gashu",
+                  token: loaded.syncedGhConfig.token || curGh.token || ""
+                };
+                localStorage.setItem("gashu_github_sync_v98", JSON.stringify(mergedGh));
+              } catch (_) {}
+            }
+            if (loaded.geminiApiKey && typeof KEY_GEM !== "undefined") {
+              try {
+                if (!localStorage.getItem(KEY_GEM)) {
+                  localStorage.setItem(KEY_GEM, String(loaded.geminiApiKey).trim());
+                }
+              } catch (_) {}
+            }
+            if (typeof window.__gashuApplyAccountState === "function") {
+              window.__gashuApplyAccountState(loaded);
+            }
             state = loaded;
             let savedTab = "hub";
             try { savedTab = localStorage.getItem("gashu_last_tab_v98") || loaded.lastTab || "hub"; } catch (_) {}
@@ -3205,6 +3233,24 @@
       }
 
       var state = loadState();
+      window.__gashuApplyAccountState = function (nextSt) {
+        if (!nextSt || typeof nextSt !== 'object') return;
+        if (!nextSt.hubTheme && state && state.hubTheme) nextSt.hubTheme = state.hubTheme;
+        if (!nextSt.geminiApiKey && state && state.geminiApiKey) nextSt.geminiApiKey = state.geminiApiKey;
+        state = nextSt;
+        try {
+          if (state.geminiApiKey) localStorage.setItem(KEY_GEM, String(state.geminiApiKey).trim());
+          var encNow = (typeof window.encryptStatePayload === 'function')
+            ? window.encryptStatePayload(state)
+            : JSON.stringify(state);
+          localStorage.setItem(KEY_STATE, encNow);
+          if (window.__GASHU_CURRENT_ACCOUNT__) {
+            localStorage.setItem(KEY_STATE + '::' + encodeURIComponent(window.__GASHU_CURRENT_ACCOUNT__), encNow);
+          }
+        } catch (e) {}
+        if (typeof window.applyActiveTheme === 'function') window.applyActiveTheme();
+        if (typeof refreshSettingsGemKeyUi === 'function') refreshSettingsGemKeyUi();
+      };
       var currentTab = 'workspace';
       var boardFilter = 'active_due';
       var ledgerSub = 'all';
@@ -3358,8 +3404,11 @@
           renderWorkspace();
           var wt = activeTrip();
           if (wt) {
-            wt.__lastWeatherRefresh = Date.now();
-            fetchLiveWeatherForTrip(wt, true);
+            var nowW = Date.now();
+            if (!wt.__lastWeatherRefresh || (nowW - wt.__lastWeatherRefresh > 60000)) {
+              wt.__lastWeatherRefresh = nowW;
+              fetchLiveWeatherForTrip(wt, true);
+            }
           }
         }
         if (tab === 'hub') {
@@ -5319,31 +5368,53 @@
               pendEl.textContent = ans;
               saveBotMessageToHistory(ctxKey, 'bot', ans, false);
 
-              var placeLines = ans.split(/\r?\n/).map(function (ln) { return ln.trim(); }).filter(Boolean);
-              var naverTargets = [];
-              placeLines.forEach(function (ln) {
-                var mNum = ln.match(/^(?:\d+[\.\)]\s*)?([가-힣A-Za-z0-9·&\s]{2,22}?)(?:\s*[:：\-–—]|\s*\()/);
-                if (mNum && mNum[1]) {
-                  var cand = mNum[1].trim();
-                  if (cand && cand.indexOf('가슈AI') < 0 && cand.indexOf('코스') < 0 && cand.indexOf('추천') < 0 && cand.indexOf('팁') < 0) {
-                    if (naverTargets.indexOf(cand) < 0) naverTargets.push(cand);
-                  }
-                }
-              });
-              if (naverTargets.length && (cleanQ.indexOf('맛집') >= 0 || cleanQ.indexOf('동선') >= 0 || cleanQ.indexOf('여행지') >= 0 || cleanQ.indexOf('추천') >= 0 || cleanQ.indexOf('코스') >= 0 || cleanQ.indexOf('가볼') >= 0)) {
-                var linkRow = document.createElement('div');
-                linkRow.style.cssText = 'display:flex; flex-wrap:wrap; gap:6px; margin-top:4px; margin-bottom:4px; align-self:flex-start;';
-                naverTargets.slice(0, 4).forEach(function (plName) {
-                  var aBtn = document.createElement('a');
-                  aBtn.href = 'https://search.naver.com/search.naver?query=' + encodeURIComponent(plName);
-                  aBtn.target = '_blank';
-                  aBtn.rel = 'noopener';
-                  aBtn.className = 'btn btn-outline btn-sm';
-                  aBtn.style.cssText = 'text-decoration:none; background:var(--surface); color:var(--c-forest); font-weight:800;';
-                  aBtn.textContent = plName + ' · 네이버 검색 ↗';
-                  linkRow.appendChild(aBtn);
+              var isTodoOrPrepSearch = (cleanQ.indexOf('할일') >= 0 || cleanQ.indexOf('준비물') >= 0);
+              var isFoodMapSearch = (cleanQ.indexOf('맛집') >= 0);
+              if (isTodoOrPrepSearch || isFoodMapSearch) {
+                var destPrefix = ((t && (t.dest || t.title)) || '').replace(/^[0-9]+월\s*/, '').split('·')[0].trim();
+                var rawLines = ans.split(/\r?\n/).map(function (ln) { return ln.trim(); }).filter(Boolean);
+                var extractedItems = [];
+                var candidateLines = rawLines.filter(function (ln) {
+                  return /^\d+[\.\)]\s*/.test(ln) || /[:：]/.test(ln);
                 });
-                box.appendChild(linkRow);
+                var targetLines = candidateLines.length ? candidateLines : rawLines;
+                targetLines.forEach(function (ln) {
+                  var cleanedLn = ln.replace(/^\d+[\.\)]\s*/, '').trim();
+                  if (/즐길\s*맛집|곳입니다|대비해|드시고|산행하세요|가슈AI|여행\s*플래너/.test(cleanedLn)) return;
+                  var mPair = cleanedLn.match(/^([가-힣A-Za-z0-9·&\s]{2,22}?)(?:\s*[:：\-–—]|\s*\()/);
+                  var itemTitle = (mPair && mPair[1]) ? mPair[1].trim() : cleanedLn.split(',')[0].slice(0, 18).trim();
+                  if (!itemTitle || itemTitle.length < 2) return;
+                  if (extractedItems.indexOf(itemTitle) < 0) extractedItems.push(itemTitle);
+                });
+
+                if (extractedItems.length) {
+                  var linkRow = document.createElement('div');
+                  linkRow.style.cssText = 'display:flex; flex-wrap:wrap; gap:6px; margin-top:4px; margin-bottom:4px; align-self:flex-start;';
+                  extractedItems.slice(0, 4).forEach(function (itemName) {
+                    var aBtn = document.createElement('a');
+                    aBtn.target = '_blank';
+                    aBtn.rel = 'noopener';
+                    aBtn.className = 'btn btn-outline btn-sm';
+                    aBtn.style.cssText = 'text-decoration:none; background:var(--surface); color:var(--c-forest); font-weight:800;';
+                    if (isFoodMapSearch) {
+                      var mapQuery = destPrefix ? (destPrefix + ' ' + itemName) : itemName;
+                      aBtn.href = 'https://map.naver.com/p/search/' + encodeURIComponent(mapQuery);
+                      aBtn.textContent = mapQuery + ' · 네이버 지도 ↗';
+                    } else {
+                      var detailQuery = itemName;
+                      if (destPrefix && itemName.indexOf(destPrefix) < 0) {
+                        detailQuery = destPrefix + ' ' + itemName;
+                      }
+                      if (detailQuery.indexOf('추천') < 0 && detailQuery.indexOf('방법') < 0 && detailQuery.indexOf('체크') < 0) {
+                        detailQuery = detailQuery + ' 추천';
+                      }
+                      aBtn.href = 'https://www.google.com/search?q=' + encodeURIComponent(detailQuery);
+                      aBtn.textContent = detailQuery + ' · 구글 검색 ↗';
+                    }
+                    linkRow.appendChild(aBtn);
+                  });
+                  box.appendChild(linkRow);
+                }
               }
 
               appendFollowupChips(buildFollowupQuestions(cleanQ, isHubMode));
@@ -5372,7 +5443,8 @@
       function renderAll() {
         renderSelector();
         // --- OTP 입력란 복붙(공백/하이픈 자동정리) 및 화면 노출 차단 ---
-      (function setupOtpPasteSanitizerV98() {
+      if (!window.__gashuOtpSanitizerBound) {
+        window.__gashuOtpSanitizerBound = true;
         ['opSetupOtpCodeIn', 'opAuth1OtpIn', 'secUnlockOtpIn'].forEach(function (id) {
           var el = document.getElementById(id);
           if (!el) return;
@@ -5391,7 +5463,7 @@
             if (el.value !== cleaned) el.value = cleaned;
           });
         });
-      })();
+      }
 tickClock();
         renderWorkspace();
         renderHub();
@@ -6060,6 +6132,7 @@ tickClock();
             var catDefault = kindVal === 'caution'
               ? '주의·유의사항'
               : (kindVal === 'tip' ? (srcVal === 'youtube' ? '유튜브' : (srcVal === 'blog' ? '블로그' : '팁')) : '일반');
+            var nowIsoCb = new Date().toISOString();
             activeTrip().checklist.unshift({
               id: 'c_' + Date.now(),
               kind: kindVal,
@@ -6070,7 +6143,9 @@ tickClock();
               checked: false,
               sourceType: kindVal === 'tip' ? srcVal : '',
               tipUrl: kindVal === 'tip' ? urlVal : '',
-              store: isU ? USIMSA : null
+              store: isU ? USIMSA : null,
+              createdAt: nowIsoCb,
+              updatedAt: nowIsoCb
             });
             if (titleIn) titleIn.value = '';
             if (catIn) catIn.value = '';
@@ -6201,11 +6276,15 @@ tickClock();
           var place = document.getElementById('itPlace').value.trim();
           if (!place) return;
           var t = activeTrip();
+          var nowIsoIt = new Date().toISOString();
+          var pickTimeIt = document.getElementById('itTime').value || new Date().toTimeString().slice(0, 5);
           t.itinerary.push({
             id: 'i_' + Date.now(), day: Number(document.getElementById('itDay').value) || 1,
             date: document.getElementById('itDate').value || t.startDate || '',
-            time: document.getElementById('itTime').value || '10:00',
-            place: place, note: document.getElementById('itNote').value.trim(), thumb: getDefaultPlaceThumb(t)
+            time: pickTimeIt,
+            place: place, note: document.getElementById('itNote').value.trim(), thumb: getDefaultPlaceThumb(t),
+            createdAt: nowIsoIt,
+            updatedAt: nowIsoIt
           });
           document.getElementById('itPlace').value = ''; document.getElementById('itNote').value = '';
           saveState('일정 추가됨');
@@ -6373,9 +6452,15 @@ tickClock();
               return;
             }
           }
+          var nowObjLog = new Date();
+          var nowIsoLog = nowObjLog.toISOString();
+          var nowTimeLog = nowObjLog.toTimeString().slice(0, 5);
           var payload = {
             id: editLogId || ('l_' + Date.now()),
             date: targetDate,
+            time: nowTimeLog,
+            createdAt: nowIsoLog,
+            updatedAt: nowIsoLog,
             title: document.getElementById('logTitle').value.trim() || '여행 일기',
             sns: document.getElementById('logSns').value.trim(),
             html: el.innerHTML,
@@ -7650,7 +7735,7 @@ tickClock();
         }
 
         function applyRemoteStatePayload(remoteObj) {
-          if (!remoteObj || typeof remoteObj !== 'object' || !Array.isArray(remoteObj.trips)) return false;
+          if (!remoteObj || typeof remoteObj !== 'object' || !Array.isArray(remoteObj.trips) || !remoteObj.trips.length) return false;
           var prevActiveId = state.activeTripId;
           var prevTab = currentTab;
           state = Object.assign({}, state, remoteObj, {
